@@ -51,9 +51,16 @@ serve(async (req) => {
       throw new Error("Failed to download image");
     }
 
-    // Convert to base64
+    // Convert to base64 using chunked approach to avoid stack overflow
     const imageBytes = await imageData.arrayBuffer();
-    const base64Image = btoa(String.fromCharCode(...new Uint8Array(imageBytes)));
+    const uint8Array = new Uint8Array(imageBytes);
+    let binaryString = "";
+    const chunkSize = 8192;
+    for (let i = 0; i < uint8Array.length; i += chunkSize) {
+      const chunk = uint8Array.subarray(i, i + chunkSize);
+      binaryString += String.fromCharCode(...chunk);
+    }
+    const base64Image = btoa(binaryString);
     const mimeType = imageData.type || "image/jpeg";
 
     // Build health context for personalized feedback
