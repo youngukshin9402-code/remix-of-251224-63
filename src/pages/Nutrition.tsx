@@ -483,20 +483,20 @@ export default function Nutrition() {
             <div className="flex flex-col sm:flex-row gap-3">
               <Button
                 size="lg"
-                className="w-full sm:flex-1 h-14 min-h-[56px] text-base font-semibold rounded-xl"
+                className="w-full min-w-0 sm:flex-1 h-14 min-h-[56px] text-base font-semibold rounded-xl whitespace-normal break-words"
                 onClick={() => cameraInputRef.current?.click()}
               >
                 <Camera className="w-5 h-5 mr-2 shrink-0" />
-                카메라로 촬영
+                <span className="truncate">카메라로 촬영</span>
               </Button>
               <Button
                 size="lg"
                 variant="outline"
-                className="w-full sm:flex-1 h-14 min-h-[56px] text-base font-semibold rounded-xl border-2"
+                className="w-full min-w-0 sm:flex-1 h-14 min-h-[56px] text-base font-semibold rounded-xl border-2 whitespace-normal break-words"
                 onClick={() => fileInputRef.current?.click()}
               >
                 <ImageIcon className="w-5 h-5 mr-2 shrink-0" />
-                갤러리에서 선택
+                <span className="truncate">갤러리에서 선택</span>
               </Button>
             </div>
           </div>
