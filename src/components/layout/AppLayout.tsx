@@ -8,6 +8,7 @@ import {
   User,
   LogOut,
   Heart,
+  ShoppingBag,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -16,6 +17,7 @@ const navItems = [
   { path: "/medical", icon: Stethoscope, label: "의료" },
   { path: "/nutrition", icon: Utensils, label: "영양" },
   { path: "/exercise", icon: Dumbbell, label: "운동" },
+  { path: "/shop", icon: ShoppingBag, label: "상점" },
   { path: "/profile", icon: User, label: "마이" },
 ];
 

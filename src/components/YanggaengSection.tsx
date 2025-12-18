@@ -26,6 +26,7 @@ export function YanggaengSection() {
             description="건강검진 결과를 사진으로 찍으면 AI가 쉬운 말로 설명해드려요."
             icon={Stethoscope}
             color="health"
+            to="/medical"
             features={[
               "건강검진 결과 자동 분석",
               "쉬운 용어로 설명",
@@ -40,6 +41,7 @@ export function YanggaengSection() {
             description="식사 사진을 찍으면 바로 영양 피드백을 받을 수 있어요."
             icon={Utensils}
             color="nutrition"
+            to="/nutrition"
             features={[
               "음식 사진 분석",
               "나트륨/당 체크",
@@ -54,12 +56,8 @@ export function YanggaengSection() {
             description="매일 3가지 미션을 완료하고 포인트를 모아보세요."
             icon={Dumbbell}
             color="exercise"
-            features={[
-              "일일 미션 3개",
-              "원터치 완료",
-              "포인트 적립",
-              "주간 리포트",
-            ]}
+            to="/exercise"
+            features={["일일 미션 3개", "원터치 완료", "포인트 적립", "주간 리포트"]}
             delay={200}
           />
         </div>

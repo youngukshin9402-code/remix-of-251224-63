@@ -25,6 +25,9 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const isUserType = (v: unknown): v is UserType =>
+  v === "user" || v === "guardian" || v === "coach" || v === "admin";
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -45,41 +48,80 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return data as Profile | null;
   };
 
-  const refreshProfile = async () => {
-    if (user) {
-      const newProfile = await fetchProfile(user.id);
-      setProfile(newProfile);
+  const ensureProfile = async (authUser: User) => {
+    const existing = await fetchProfile(authUser.id);
+    if (existing) return existing;
+
+    const meta = (authUser.user_metadata || {}) as Record<string, unknown>;
+    const nickname =
+      typeof meta.nickname === "string"
+        ? meta.nickname
+        : authUser.email
+          ? authUser.email.split("@")[0]
+          : null;
+
+    const user_type: UserType = isUserType(meta.user_type) ? meta.user_type : "user";
+
+    const { data, error } = await supabase
+      .from("profiles")
+      .upsert(
+        {
+          id: authUser.id,
+          nickname,
+          phone: null,
+          user_type,
+          subscription_tier: "basic",
+          current_points: 0,
+          assigned_coach_id: null,
+        },
+        { onConflict: "id" }
+      )
+      .select("*")
+      .single();
+
+    if (error) {
+      console.error("Error creating profile:", error);
+      return null;
     }
+
+    return data as Profile;
+  };
+
+  const refreshProfile = async () => {
+    if (!user) return;
+    const newProfile = await fetchProfile(user.id);
+    setProfile(newProfile);
   };
 
   useEffect(() => {
-    // 1. Set up auth state listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      setSession(nextSession);
+      setUser(nextSession?.user ?? null);
 
-        // Defer profile fetch with setTimeout to avoid deadlock
-        if (session?.user) {
-          setTimeout(() => {
-            fetchProfile(session.user.id).then(setProfile);
-          }, 0);
-        } else {
-          setProfile(null);
-        }
+      if (!nextSession?.user) {
+        setProfile(null);
+        setLoading(false);
+        return;
       }
-    );
 
-    // 2. THEN check for existing session
+      // Avoid potential deadlock by deferring profile work
+      setTimeout(() => {
+        ensureProfile(nextSession.user)
+          .then(setProfile)
+          .finally(() => setLoading(false));
+      }, 0);
+    });
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-      
+
       if (session?.user) {
-        fetchProfile(session.user.id).then((p) => {
-          setProfile(p);
-          setLoading(false);
-        });
+        ensureProfile(session.user)
+          .then(setProfile)
+          .finally(() => setLoading(false));
       } else {
         setLoading(false);
       }
@@ -96,9 +138,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider
-      value={{ user, session, profile, loading, signOut, refreshProfile }}
-    >
+    <AuthContext.Provider value={{ user, session, profile, loading, signOut, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );

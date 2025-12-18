@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Heart } from "lucide-react";
+import { Link } from "react-router-dom";
 
 export function Header() {
   return (
@@ -11,7 +12,7 @@ export function Header() {
             <Heart className="w-6 h-6 text-primary-foreground" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-foreground">건강양갱</h1>
+            <span className="text-xl font-bold text-foreground">건강양갱</span>
             <p className="text-sm text-muted-foreground">Health Yanggaeng</p>
           </div>
         </div>
@@ -39,8 +40,8 @@ export function Header() {
         </nav>
 
         {/* CTA 버튼 */}
-        <Button variant="yanggaeng" size="lg">
-          시작하기
+        <Button asChild variant="yanggaeng" size="lg">
+          <Link to="/auth">시작하기</Link>
         </Button>
       </div>
     </header>

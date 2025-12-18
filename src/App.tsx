@@ -89,9 +89,18 @@ function AppRoutes() {
         <Route path="/profile" element={<Profile />} />
         <Route path="/premium" element={<Premium />} />
         <Route path="/coaching" element={<Coaching />} />
-        <Route path="/video-call/:sessionId" element={<VideoCall />} />
         <Route path="/shop" element={<Shop />} />
       </Route>
+
+      {/* 영상통화 (모든 역할 접근) */}
+      <Route
+        path="/video-call/:sessionId"
+        element={
+          <ProtectedRoute allowedTypes={["user", "guardian", "coach", "admin"]}>
+            <VideoCall />
+          </ProtectedRoute>
+        }
+      />
 
       {/* 코치 페이지 */}
       <Route
