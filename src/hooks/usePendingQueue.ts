@@ -8,7 +8,7 @@ import { Json } from '@/integrations/supabase/types';
 export type PendingType = 'meal_record' | 'gym_record';
 
 export interface PendingItem {
-  localId: string;        // UUID for dedup
+  localId: string;        // UUID for dedup (will be used as client_id)
   type: PendingType;
   data: Record<string, unknown>;
   createdAt: string;
@@ -38,10 +38,10 @@ function savePendingQueue(queue: PendingItem[]): void {
 }
 
 /**
- * Generate UUID for local tracking
+ * Generate UUID for local tracking (used as client_id for idempotency)
  */
 function generateLocalId(): string {
-  return `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  return `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 }
 
 /**
@@ -70,7 +70,7 @@ export function usePendingQueue() {
     queue.push({
       localId,
       type,
-      data: { ...data, localId },
+      data: { ...data, localId, client_id: localId },
       createdAt: new Date().toISOString(),
       retryCount: 0,
     });
@@ -95,7 +95,7 @@ export function usePendingQueue() {
     return queue.some(item => item.localId === localId);
   }, []);
 
-  // Upload single pending item to server
+  // Upload single pending item to server using UPSERT with client_id
   const uploadPendingItem = useCallback(async (item: PendingItem): Promise<boolean> => {
     if (!user) return false;
 
@@ -110,25 +110,35 @@ export function usePendingQueue() {
           imageUrl = url;
         }
 
+        // Use UPSERT with client_id for idempotency
         const { error } = await supabase
           .from('meal_records')
-          .insert({
+          .upsert({
             user_id: user.id,
+            client_id: item.localId,
             date: item.data.date as string,
             meal_type: item.data.meal_type as string,
             image_url: imageUrl,
             foods: item.data.foods as Json,
             total_calories: item.data.total_calories as number,
+          }, {
+            onConflict: 'user_id,client_id',
+            ignoreDuplicates: false,
           });
 
         if (error) throw error;
       } else if (item.type === 'gym_record') {
+        // Use UPSERT with client_id for idempotency
         const { error } = await supabase
           .from('gym_records')
-          .insert({
+          .upsert({
             user_id: user.id,
+            client_id: item.localId,
             date: item.data.date as string,
             exercises: item.data.exercises as Json,
+          }, {
+            onConflict: 'user_id,client_id',
+            ignoreDuplicates: false,
           });
 
         if (error) throw error;
@@ -183,11 +193,11 @@ export function usePendingQueue() {
     return { success, failed };
   }, [user, uploadPendingItem, updateCount]);
 
-  // Listen for online event and auto-sync
+  // Listen for online event, visibility change, and focus (app resume)
   useEffect(() => {
-    const handleOnline = async () => {
+    const handleSync = async () => {
       if (navigator.onLine && user) {
-        console.log('Online detected, syncing pending queue...');
+        console.log('Sync triggered, syncing pending queue...');
         const result = await syncPending();
         if (result.success > 0) {
           console.log(`Synced ${result.success} pending items`);
@@ -195,15 +205,29 @@ export function usePendingQueue() {
       }
     };
 
-    window.addEventListener('online', handleOnline);
+    // Online event
+    window.addEventListener('online', handleSync);
+    
+    // Visibility change (app comes to foreground)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        handleSync();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Focus event (window gains focus)
+    window.addEventListener('focus', handleSync);
     
     // Initial sync if online
     if (navigator.onLine && user) {
-      handleOnline();
+      handleSync();
     }
 
     return () => {
-      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('online', handleSync);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleSync);
     };
   }, [user, syncPending]);
 

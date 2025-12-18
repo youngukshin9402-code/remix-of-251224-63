@@ -191,6 +191,7 @@ export type Database = {
       }
       gym_records: {
         Row: {
+          client_id: string | null
           created_at: string | null
           date: string
           exercises: Json
@@ -198,6 +199,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          client_id?: string | null
           created_at?: string | null
           date: string
           exercises?: Json
@@ -205,6 +207,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          client_id?: string | null
           created_at?: string | null
           date?: string
           exercises?: Json
@@ -359,6 +362,7 @@ export type Database = {
       }
       meal_records: {
         Row: {
+          client_id: string | null
           created_at: string | null
           date: string
           foods: Json
@@ -369,6 +373,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          client_id?: string | null
           created_at?: string | null
           date: string
           foods?: Json
@@ -379,6 +384,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          client_id?: string | null
           created_at?: string | null
           date?: string
           foods?: Json

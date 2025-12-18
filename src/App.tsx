@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { useLocalDataMigration } from "@/hooks/useLocalDataMigration";
 
 // Pages
 import Index from "./pages/Index";
@@ -78,6 +79,9 @@ function AuthenticatedRedirect() {
 
 function AppRoutes() {
   const { user } = useAuth();
+  
+  // Initialize one-time local→server migration
+  useLocalDataMigration();
 
   return (
     <Routes>
