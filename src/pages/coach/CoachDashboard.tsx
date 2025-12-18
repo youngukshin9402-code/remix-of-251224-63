@@ -128,7 +128,14 @@ export default function CoachDashboard() {
                 회원들이 결과를 기다리고 있어요.
               </p>
             </div>
-            <Button variant="outline" size="sm">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const first = pendingReviews[0];
+                if (first) navigate(`/coach/user/${first.user_id}`);
+              }}
+            >
               검토하기
             </Button>
           </div>

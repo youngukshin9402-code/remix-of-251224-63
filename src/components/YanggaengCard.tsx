@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { LucideIcon } from "lucide-react";
+import { Link } from "react-router-dom";
 
 interface YanggaengCardProps {
   title: string;
@@ -8,6 +9,7 @@ interface YanggaengCardProps {
   color: "health" | "nutrition" | "exercise";
   features: string[];
   delay?: number;
+  to?: string;
 }
 
 const colorStyles = {
@@ -38,20 +40,20 @@ export function YanggaengCard({
   color,
   features,
   delay = 0,
+  to,
 }: YanggaengCardProps) {
   const styles = colorStyles[color];
 
-  return (
-    <div
-      className={cn(
-        "group relative rounded-3xl p-8 border-2 transition-all duration-500",
-        "hover:shadow-xl hover:-translate-y-2 cursor-pointer",
-        styles.bg,
-        styles.border,
-        "animate-slide-up"
-      )}
-      style={{ animationDelay: `${delay}ms` }}
-    >
+  const className = cn(
+    "group relative rounded-3xl p-8 border-2 transition-all duration-500",
+    to ? "hover:shadow-xl hover:-translate-y-2 cursor-pointer" : "",
+    styles.bg,
+    styles.border,
+    "animate-slide-up"
+  );
+
+  const content = (
+    <>
       {/* 아이콘 */}
       <div
         className={cn(
@@ -97,6 +99,20 @@ export function YanggaengCard({
       >
         양갱
       </div>
+    </>
+  );
+
+  if (to) {
+    return (
+      <Link to={to} className={className} style={{ animationDelay: `${delay}ms` }}>
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <div className={className} style={{ animationDelay: `${delay}ms` }}>
+      {content}
     </div>
   );
 }

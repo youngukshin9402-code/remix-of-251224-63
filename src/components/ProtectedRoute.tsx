@@ -1,4 +1,4 @@
-import { Navigate, useLocation } from "react-router-dom";
+import { Navigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2 } from "lucide-react";
 
@@ -28,8 +28,29 @@ export function ProtectedRoute({ children, allowedTypes }: ProtectedRouteProps) 
 
   // 권한 체크
   if (allowedTypes && profile && !allowedTypes.includes(profile.user_type)) {
-    // 권한이 없으면 대시보드로 리다이렉트
-    return <Navigate to="/dashboard" replace />;
+    const homeByRole =
+      profile.user_type === "admin"
+        ? "/admin"
+        : profile.user_type === "coach"
+          ? "/coach"
+          : "/dashboard";
+
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-6">
+        <div className="max-w-md w-full bg-card border border-border rounded-2xl p-6 text-center">
+          <p className="text-xl font-semibold text-foreground">접근 권한이 없어요</p>
+          <p className="mt-2 text-muted-foreground">
+            이 페이지는 현재 계정 유형에서 열 수 없습니다.
+          </p>
+          <Link
+            to={homeByRole}
+            className="mt-5 inline-flex items-center justify-center h-12 px-6 rounded-xl bg-primary text-primary-foreground font-semibold"
+          >
+            돌아가기
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   return <>{children}</>;

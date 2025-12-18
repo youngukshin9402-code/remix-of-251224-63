@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,10 @@ import { useToast } from "@/hooks/use-toast";
 type AuthMode = "login" | "signup";
 type UserType = "user" | "guardian";
 
+type LocationState = {
+  from?: { pathname?: string };
+};
+
 // Kakao icon component
 const KakaoIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
@@ -19,7 +23,12 @@ const KakaoIcon = () => (
 
 export default function Auth() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
+
+  const state = (location.state || {}) as LocationState;
+  const from = state.from?.pathname || "/dashboard";
+
   const [mode, setMode] = useState<AuthMode>("login");
   const [loading, setLoading] = useState(false);
   const [kakaoLoading, setKakaoLoading] = useState(false);
@@ -30,18 +39,20 @@ export default function Auth() {
 
   // Check for auth state changes (for OAuth callbacks)
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_IN" && session) {
         toast({
           title: "환영합니다!",
           description: "로그인에 성공했어요.",
         });
-        navigate("/dashboard");
+        navigate(from, { replace: true });
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate, toast]);
+  }, [navigate, toast, from]);
 
   const handleKakaoLogin = async () => {
     setKakaoLoading(true);
@@ -49,7 +60,7 @@ export default function Auth() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "kakao",
         options: {
-          redirectTo: `${window.location.origin}/dashboard`,
+          redirectTo: `${window.location.origin}${from}`,
         },
       });
 
@@ -60,7 +71,7 @@ export default function Auth() {
           variant: "destructive",
         });
       }
-    } catch (error) {
+    } catch {
       toast({
         title: "오류 발생",
         description: "다시 시도해주세요.",
@@ -83,9 +94,10 @@ export default function Auth() {
     if (error) {
       toast({
         title: "로그인 실패",
-        description: error.message === "Invalid login credentials" 
-          ? "이메일 또는 비밀번호가 올바르지 않아요." 
-          : "다시 시도해주세요.",
+        description:
+          error.message === "Invalid login credentials"
+            ? "이메일 또는 비밀번호가 올바르지 않아요."
+            : "다시 시도해주세요.",
         variant: "destructive",
       });
     } else {
@@ -93,14 +105,14 @@ export default function Auth() {
         title: "환영합니다!",
         description: "로그인에 성공했어요.",
       });
-      navigate("/dashboard");
+      navigate(from, { replace: true });
     }
     setLoading(false);
   };
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!nickname.trim()) {
       toast({
         title: "닉네임을 입력해주세요",
@@ -233,7 +245,9 @@ export default function Auth() {
             <div className="space-y-6">
               <form onSubmit={handleLogin} className="space-y-6">
                 <div className="space-y-2">
-                  <Label htmlFor="email" className="text-lg">이메일</Label>
+                  <Label htmlFor="email" className="text-lg">
+                    이메일
+                  </Label>
                   <Input
                     id="email"
                     type="email"
@@ -246,7 +260,9 @@ export default function Auth() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="password" className="text-lg">비밀번호</Label>
+                  <Label htmlFor="password" className="text-lg">
+                    비밀번호
+                  </Label>
                   <Input
                     id="password"
                     type="password"
@@ -258,12 +274,7 @@ export default function Auth() {
                   />
                 </div>
 
-                <Button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full"
-                  size="lg"
-                >
+                <Button type="submit" disabled={loading} className="w-full" size="lg">
                   {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "로그인"}
                 </Button>
               </form>
@@ -292,7 +303,9 @@ export default function Auth() {
               </button>
 
               <div className="space-y-2">
-                <Label htmlFor="nickname" className="text-lg">닉네임</Label>
+                <Label htmlFor="nickname" className="text-lg">
+                  닉네임
+                </Label>
                 <Input
                   id="nickname"
                   type="text"
@@ -305,7 +318,9 @@ export default function Auth() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="signup-email" className="text-lg">이메일</Label>
+                <Label htmlFor="signup-email" className="text-lg">
+                  이메일
+                </Label>
                 <Input
                   id="signup-email"
                   type="email"
@@ -318,7 +333,9 @@ export default function Auth() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="signup-password" className="text-lg">비밀번호</Label>
+                <Label htmlFor="signup-password" className="text-lg">
+                  비밀번호
+                </Label>
                 <Input
                   id="signup-password"
                   type="password"
@@ -333,12 +350,7 @@ export default function Auth() {
 
               <UserTypeSelector />
 
-              <Button
-                type="submit"
-                disabled={loading}
-                className="w-full"
-                size="lg"
-              >
+              <Button type="submit" disabled={loading} className="w-full" size="lg">
                 {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "회원가입"}
               </Button>
 

@@ -7,6 +7,7 @@ import {
   ChevronRight,
   Sparkles,
   TrendingUp,
+  ShoppingBag,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -140,6 +141,28 @@ export default function Dashboard() {
             </Link>
           ))}
         </div>
+      </section>
+
+      {/* 상점 */}
+      <section>
+        <h2 className="text-xl font-semibold mb-4">건강 상점</h2>
+        <Link
+          to="/shop"
+          className="block rounded-3xl p-6 bg-card border border-border transition-all hover:shadow-lg hover:-translate-y-1"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 rounded-2xl flex items-center justify-center bg-primary/10">
+              <ShoppingBag className="w-8 h-8 text-primary" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-xl font-semibold text-foreground">건강 상점</h3>
+              <p className="text-muted-foreground">
+                회원님 건강 태그 기반 맞춤 상품을 확인하세요
+              </p>
+            </div>
+            <ChevronRight className="w-6 h-6 text-muted-foreground" />
+          </div>
+        </Link>
       </section>
 
       {/* 프리미엄 안내 */}

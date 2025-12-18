@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
+import { Link } from "react-router-dom";
 
 export function CTASection() {
   const benefits = [
@@ -41,9 +42,11 @@ export function CTASection() {
 
           {/* CTA 버튼 */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <Button variant="hero" size="touch-lg" className="w-full sm:w-auto">
-              카카오로 시작하기
-              <ArrowRight className="w-5 h-5" />
+            <Button asChild variant="hero" size="touch-lg" className="w-full sm:w-auto">
+              <Link to="/auth">
+                카카오로 시작하기
+                <ArrowRight className="w-5 h-5" />
+              </Link>
             </Button>
           </div>
 

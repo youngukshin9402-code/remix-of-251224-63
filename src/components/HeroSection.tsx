@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Sparkles, Shield, Users } from "lucide-react";
+import { Link } from "react-router-dom";
 
 export function HeroSection() {
   return (
@@ -7,7 +8,10 @@ export function HeroSection() {
       {/* 배경 장식 */}
       <div className="absolute inset-0 -z-10">
         <div className="absolute top-20 right-10 w-72 h-72 bg-primary/10 rounded-full blur-3xl animate-pulse-soft" />
-        <div className="absolute bottom-20 left-10 w-96 h-96 bg-accent/10 rounded-full blur-3xl animate-pulse-soft" style={{ animationDelay: "1s" }} />
+        <div
+          className="absolute bottom-20 left-10 w-96 h-96 bg-accent/10 rounded-full blur-3xl animate-pulse-soft"
+          style={{ animationDelay: "1s" }}
+        />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/5 rounded-full blur-3xl" />
       </div>
 
@@ -24,11 +28,7 @@ export function HeroSection() {
             건강도{" "}
             <span className="text-primary relative">
               양갱
-              <svg
-                className="absolute -bottom-2 left-0 w-full"
-                viewBox="0 0 200 12"
-                fill="none"
-              >
+              <svg className="absolute -bottom-2 left-0 w-full" viewBox="0 0 200 12" fill="none">
                 <path
                   d="M2 8C50 2 150 2 198 8"
                   stroke="hsl(var(--primary))"
@@ -58,12 +58,14 @@ export function HeroSection() {
             className="flex flex-col sm:flex-row gap-4 justify-center items-center animate-slide-up"
             style={{ animationDelay: "200ms" }}
           >
-            <Button variant="hero" size="touch-lg">
-              무료로 시작하기
-              <ArrowRight className="w-5 h-5" />
+            <Button asChild variant="hero" size="touch-lg">
+              <Link to="/auth">
+                무료로 시작하기
+                <ArrowRight className="w-5 h-5" />
+              </Link>
             </Button>
-            <Button variant="outline" size="touch">
-              서비스 둘러보기
+            <Button asChild variant="outline" size="touch">
+              <Link to="/dashboard">서비스 둘러보기</Link>
             </Button>
           </div>
 
