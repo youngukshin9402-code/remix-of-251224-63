@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useInBodyRecords } from "@/hooks/useServerSync";
 import { supabase } from "@/integrations/supabase/client";
@@ -21,6 +23,9 @@ import {
   Loader2,
   Camera,
   Image as ImageIcon,
+  Keyboard,
+  AlertTriangle,
+  CheckCircle2,
 } from "lucide-react";
 
 interface InBodyForm {
@@ -33,6 +38,18 @@ interface InBodyForm {
   visceral_fat: number | null;
 }
 
+interface AIConfidence {
+  weight?: number;
+  skeletal_muscle?: number;
+  body_fat_percent?: number;
+  bmr?: number;
+}
+
+interface ValidationWarning {
+  field: string;
+  message: string;
+}
+
 const emptyForm: InBodyForm = {
   date: new Date().toISOString().split('T')[0],
   weight: 0,
@@ -43,8 +60,28 @@ const emptyForm: InBodyForm = {
   visceral_fat: null,
 };
 
+// 값 유효성 검증
+const validateFormData = (data: InBodyForm): ValidationWarning[] => {
+  const warnings: ValidationWarning[] = [];
+  
+  if (data.weight && (data.weight < 20 || data.weight > 300)) {
+    warnings.push({ field: 'weight', message: '체중 범위(20-300kg)를 벗어났습니다' });
+  }
+  if (data.skeletal_muscle && (data.skeletal_muscle < 5 || data.skeletal_muscle > 80)) {
+    warnings.push({ field: 'skeletal_muscle', message: '골격근량 범위(5-80kg)를 벗어났습니다' });
+  }
+  if (data.body_fat_percent && (data.body_fat_percent < 1 || data.body_fat_percent > 60)) {
+    warnings.push({ field: 'body_fat_percent', message: '체지방률 범위(1-60%)를 벗어났습니다' });
+  }
+  if (data.bmr && (data.bmr < 500 || data.bmr > 4000)) {
+    warnings.push({ field: 'bmr', message: '기초대사량 범위(500-4000kcal)를 벗어났습니다' });
+  }
+  
+  return warnings;
+};
+
 // AI 분석 함수 - Lovable AI 연동
-const analyzeInBodyImage = async (imageBase64: string): Promise<Partial<InBodyForm>> => {
+const analyzeInBodyImage = async (imageBase64: string): Promise<{ data: Partial<InBodyForm>; confidence?: AIConfidence }> => {
   const { data, error } = await supabase.functions.invoke('analyze-inbody', {
     body: { imageBase64 }
   });
@@ -58,7 +95,7 @@ const analyzeInBodyImage = async (imageBase64: string): Promise<Partial<InBodyFo
     throw new Error(data.error || 'AI 분석 실패');
   }
 
-  return data.data;
+  return { data: data.data, confidence: data.confidence };
 };
 
 export default function InBody() {
@@ -68,15 +105,32 @@ export default function InBody() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<InBodyForm>(emptyForm);
   
+  // 입력 모드 상태
+  const [inputMode, setInputMode] = useState<'manual' | 'photo'>('manual');
+  
   // 사진 분석 관련 상태
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [aiConfidence, setAiConfidence] = useState<AIConfidence | null>(null);
+  const [aiPrefilled, setAiPrefilled] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+  
+  // 유효성 검증 관련
+  const [validationWarnings, setValidationWarnings] = useState<ValidationWarning[]>([]);
+  const [showWarningConfirm, setShowWarningConfirm] = useState(false);
 
   const handleSave = async () => {
     if (!formData.weight || !formData.date) {
       toast({ title: "체중과 날짜는 필수입니다", variant: "destructive" });
+      return;
+    }
+
+    // 유효성 검증
+    const warnings = validateFormData(formData);
+    if (warnings.length > 0 && !showWarningConfirm) {
+      setValidationWarnings(warnings);
+      setShowWarningConfirm(true);
       return;
     }
 
@@ -110,6 +164,7 @@ export default function InBody() {
       bmr: record.bmr,
       visceral_fat: record.visceral_fat,
     });
+    setInputMode('manual');
     setDialogOpen(true);
   };
 
@@ -127,10 +182,15 @@ export default function InBody() {
     setFormData({ ...emptyForm, date: new Date().toISOString().split('T')[0] });
     setUploadedImage(null);
     setIsAnalyzing(false);
+    setAiConfidence(null);
+    setAiPrefilled(false);
+    setValidationWarnings([]);
+    setShowWarningConfirm(false);
   };
 
-  const openNewDialog = () => {
+  const openNewDialog = (mode: 'manual' | 'photo' = 'manual') => {
     resetForm();
+    setInputMode(mode);
     setDialogOpen(true);
   };
 
@@ -145,10 +205,12 @@ export default function InBody() {
       const base64 = reader.result as string;
       setUploadedImage(base64);
       setIsAnalyzing(true);
+      setInputMode('photo');
       setDialogOpen(true);
 
       try {
-        const analyzedData = await analyzeInBodyImage(base64);
+        const result = await analyzeInBodyImage(base64);
+        const analyzedData = result.data;
         
         // 분석 결과를 폼에 자동 입력
         setFormData(prev => ({
@@ -162,15 +224,19 @@ export default function InBody() {
           visceral_fat: analyzedData.visceral_fat || prev.visceral_fat,
         }));
         
+        setAiConfidence(result.confidence || null);
+        setAiPrefilled(true);
+        
         toast({ title: "분석 완료!", description: "AI가 인바디 결과를 인식했습니다. 확인 후 저장하세요." });
       } catch (error) {
         console.error('Analysis error:', error);
         toast({ 
           title: "분석 실패", 
-          description: error instanceof Error ? error.message : "다시 시도해주세요", 
+          description: "수기 입력으로 전환합니다", 
           variant: "destructive" 
         });
         setUploadedImage(null);
+        setInputMode('manual');
       } finally {
         setIsAnalyzing(false);
       }
@@ -183,6 +249,10 @@ export default function InBody() {
     if (diff > 0) return { value: `+${diff.toFixed(1)}`, positive: true };
     if (diff < 0) return { value: diff.toFixed(1), positive: false };
     return null;
+  };
+
+  const hasFieldWarning = (fieldName: string) => {
+    return validationWarnings.some(w => w.field === fieldName);
   };
 
   const latestRecord = records[0];
@@ -225,31 +295,40 @@ export default function InBody() {
             </Button>
             <h1 className="text-xl font-bold">인바디 분석</h1>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => cameraInputRef.current?.click()}>
-              <Camera className="w-4 h-4 mr-1" />
-              촬영
-            </Button>
-            <Button onClick={openNewDialog} size="sm">
-              <Plus className="w-4 h-4 mr-1" />
-              기록
-            </Button>
-          </div>
+          <Button onClick={() => openNewDialog('manual')} size="sm">
+            <Plus className="w-4 h-4 mr-1" />
+            기록
+          </Button>
         </div>
       </div>
 
       <div className="p-4 space-y-6">
-        {/* 사진으로 자동입력 안내 */}
-        <div 
-          onClick={() => fileInputRef.current?.click()}
-          className="bg-gradient-to-r from-primary/10 to-primary/5 rounded-2xl border border-primary/20 p-4 flex items-center gap-4 cursor-pointer hover:bg-primary/15 transition-colors"
-        >
-          <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
-            <ImageIcon className="w-6 h-6 text-primary" />
+        {/* 입력 방식 선택 카드 */}
+        <div className="grid grid-cols-2 gap-3">
+          <div 
+            onClick={() => openNewDialog('manual')}
+            className="bg-card rounded-2xl border border-border p-4 flex flex-col items-center gap-3 cursor-pointer hover:bg-accent/50 transition-colors"
+          >
+            <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+              <Keyboard className="w-6 h-6 text-muted-foreground" />
+            </div>
+            <div className="text-center">
+              <p className="font-semibold text-foreground text-sm">수기 입력</p>
+              <p className="text-xs text-muted-foreground">직접 데이터 입력</p>
+            </div>
           </div>
-          <div className="flex-1">
-            <p className="font-semibold text-foreground">사진으로 자동 입력</p>
-            <p className="text-sm text-muted-foreground">인바디 결과지를 촬영하면 AI가 자동으로 분석합니다</p>
+          
+          <div 
+            onClick={() => fileInputRef.current?.click()}
+            className="bg-gradient-to-br from-primary/10 to-primary/5 rounded-2xl border border-primary/20 p-4 flex flex-col items-center gap-3 cursor-pointer hover:from-primary/15 hover:to-primary/10 transition-colors"
+          >
+            <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
+              <Camera className="w-6 h-6 text-primary" />
+            </div>
+            <div className="text-center">
+              <p className="font-semibold text-foreground text-sm">사진 AI 분석</p>
+              <p className="text-xs text-muted-foreground">결과지 촬영/업로드</p>
+            </div>
           </div>
         </div>
 
@@ -337,7 +416,7 @@ export default function InBody() {
           <div className="bg-card rounded-3xl border border-border p-8 text-center">
             <Scale className="w-12 h-12 mx-auto mb-3 text-muted-foreground/30" />
             <p className="text-muted-foreground">인바디 기록이 없습니다</p>
-            <Button className="mt-4" onClick={openNewDialog}>
+            <Button className="mt-4" onClick={() => openNewDialog('manual')}>
               <Plus className="w-4 h-4 mr-1" />
               첫 기록 추가
             </Button>
@@ -385,71 +464,233 @@ export default function InBody() {
         )}
       </div>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      {/* 입력 다이얼로그 */}
+      <Dialog open={dialogOpen} onOpenChange={(open) => {
+        if (!open) resetForm();
+        setDialogOpen(open);
+      }}>
         <DialogContent className="max-w-sm max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingId ? "인바디 수정" : "인바디 기록"}</DialogTitle>
           </DialogHeader>
+          
+          {/* 입력 모드 탭 (새 기록일 때만) */}
+          {!editingId && !isAnalyzing && (
+            <Tabs value={inputMode} onValueChange={(v) => setInputMode(v as 'manual' | 'photo')} className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="manual" className="text-xs">
+                  <Keyboard className="w-3 h-3 mr-1" />
+                  수기 입력
+                </TabsTrigger>
+                <TabsTrigger value="photo" className="text-xs">
+                  <Camera className="w-3 h-3 mr-1" />
+                  사진 AI
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          )}
           
           {/* 분석 중 상태 */}
           {isAnalyzing && (
             <div className="py-8 text-center">
               <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto mb-4" />
               <p className="text-muted-foreground">AI가 인바디 결과를 분석 중입니다...</p>
+              <p className="text-xs text-muted-foreground mt-2">잠시만 기다려주세요</p>
             </div>
           )}
 
-          {/* 업로드된 이미지 미리보기 */}
+          {/* 사진 모드 - 업로드 영역 */}
+          {inputMode === 'photo' && !uploadedImage && !isAnalyzing && (
+            <div className="py-6">
+              <div 
+                onClick={() => fileInputRef.current?.click()}
+                className="border-2 border-dashed border-border rounded-xl p-8 text-center cursor-pointer hover:border-primary/50 hover:bg-accent/30 transition-colors"
+              >
+                <ImageIcon className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
+                <p className="font-medium text-foreground">인바디 결과지 업로드</p>
+                <p className="text-sm text-muted-foreground mt-1">클릭하여 사진 선택</p>
+              </div>
+              <div className="flex gap-2 mt-3">
+                <Button 
+                  variant="outline" 
+                  className="flex-1"
+                  onClick={() => cameraInputRef.current?.click()}
+                >
+                  <Camera className="w-4 h-4 mr-1" />
+                  카메라
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="flex-1"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <ImageIcon className="w-4 h-4 mr-1" />
+                  갤러리
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* 업로드된 이미지 미리보기 + AI 결과 표시 */}
           {uploadedImage && !isAnalyzing && (
-            <div className="mb-4">
+            <div className="space-y-3">
               <img 
                 src={uploadedImage} 
                 alt="인바디 사진" 
                 className="w-full h-32 object-cover rounded-xl"
               />
-              <p className="text-xs text-muted-foreground text-center mt-2">
-                분석된 결과를 확인하고 수정 후 저장하세요
-              </p>
+              {aiPrefilled && (
+                <div className="flex items-center gap-2 p-2 bg-primary/10 rounded-lg">
+                  <CheckCircle2 className="w-4 h-4 text-primary" />
+                  <p className="text-xs text-foreground">
+                    AI 분석 완료 - 결과를 확인하고 필요시 수정하세요
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
-          {!isAnalyzing && (
+          {/* 폼 필드들 */}
+          {!isAnalyzing && (inputMode === 'manual' || uploadedImage) && (
             <>
               <div className="space-y-4 py-2">
                 <div className="space-y-2">
                   <label className="text-sm font-medium">날짜 *</label>
-                  <Input type="date" value={formData.date} onChange={e => setFormData({ ...formData, date: e.target.value })} />
+                  <Input 
+                    type="date" 
+                    value={formData.date} 
+                    onChange={e => setFormData({ ...formData, date: e.target.value })} 
+                  />
                 </div>
+                
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">체중 (kg) *</label>
-                    <Input type="number" step="0.1" value={formData.weight || ''} onChange={e => setFormData({ ...formData, weight: parseFloat(e.target.value) || 0 })} />
+                    <div className="flex items-center gap-2">
+                      <label className="text-sm font-medium">체중 (kg) *</label>
+                      {hasFieldWarning('weight') && (
+                        <Badge variant="destructive" className="text-xs px-1 py-0">
+                          <AlertTriangle className="w-3 h-3" />
+                        </Badge>
+                      )}
+                    </div>
+                    <Input 
+                      type="number" 
+                      step="0.1" 
+                      placeholder="65.0"
+                      value={formData.weight || ''} 
+                      onChange={e => setFormData({ ...formData, weight: parseFloat(e.target.value) || 0 })}
+                      className={hasFieldWarning('weight') ? 'border-destructive' : ''}
+                    />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">골격근량 (kg)</label>
-                    <Input type="number" step="0.1" value={formData.skeletal_muscle || ''} onChange={e => setFormData({ ...formData, skeletal_muscle: parseFloat(e.target.value) || null })} />
+                    <div className="flex items-center gap-2">
+                      <label className="text-sm font-medium">골격근량 (kg)</label>
+                      {hasFieldWarning('skeletal_muscle') && (
+                        <Badge variant="destructive" className="text-xs px-1 py-0">
+                          <AlertTriangle className="w-3 h-3" />
+                        </Badge>
+                      )}
+                    </div>
+                    <Input 
+                      type="number" 
+                      step="0.1" 
+                      placeholder="28.0"
+                      value={formData.skeletal_muscle ?? ''} 
+                      onChange={e => setFormData({ ...formData, skeletal_muscle: e.target.value ? parseFloat(e.target.value) : null })}
+                      className={hasFieldWarning('skeletal_muscle') ? 'border-destructive' : ''}
+                    />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">체지방량 (kg)</label>
-                    <Input type="number" step="0.1" value={formData.body_fat || ''} onChange={e => setFormData({ ...formData, body_fat: parseFloat(e.target.value) || null })} />
+                    <div className="flex items-center gap-2">
+                      <label className="text-sm font-medium">체지방률 (%)</label>
+                      {hasFieldWarning('body_fat_percent') && (
+                        <Badge variant="destructive" className="text-xs px-1 py-0">
+                          <AlertTriangle className="w-3 h-3" />
+                        </Badge>
+                      )}
+                    </div>
+                    <Input 
+                      type="number" 
+                      step="0.1" 
+                      placeholder="18.5"
+                      value={formData.body_fat_percent ?? ''} 
+                      onChange={e => setFormData({ ...formData, body_fat_percent: e.target.value ? parseFloat(e.target.value) : null })}
+                      className={hasFieldWarning('body_fat_percent') ? 'border-destructive' : ''}
+                    />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">체지방률 (%)</label>
-                    <Input type="number" step="0.1" value={formData.body_fat_percent || ''} onChange={e => setFormData({ ...formData, body_fat_percent: parseFloat(e.target.value) || null })} />
+                    <div className="flex items-center gap-2">
+                      <label className="text-sm font-medium">기초대사량 (kcal)</label>
+                      {hasFieldWarning('bmr') && (
+                        <Badge variant="destructive" className="text-xs px-1 py-0">
+                          <AlertTriangle className="w-3 h-3" />
+                        </Badge>
+                      )}
+                    </div>
+                    <Input 
+                      type="number" 
+                      placeholder="1450"
+                      value={formData.bmr ?? ''} 
+                      onChange={e => setFormData({ ...formData, bmr: e.target.value ? parseInt(e.target.value) : null })}
+                      className={hasFieldWarning('bmr') ? 'border-destructive' : ''}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">체지방량 (kg)</label>
+                    <Input 
+                      type="number" 
+                      step="0.1"
+                      placeholder="12.0" 
+                      value={formData.body_fat ?? ''} 
+                      onChange={e => setFormData({ ...formData, body_fat: e.target.value ? parseFloat(e.target.value) : null })} 
+                    />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">기초대사량 (kcal)</label>
-                    <Input type="number" value={formData.bmr || ''} onChange={e => setFormData({ ...formData, bmr: parseInt(e.target.value) || null })} />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">내장지방 레벨</label>
-                    <Input type="number" value={formData.visceral_fat || ''} onChange={e => setFormData({ ...formData, visceral_fat: parseInt(e.target.value) || null })} />
+                    <label className="text-sm font-medium text-muted-foreground">내장지방 레벨</label>
+                    <Input 
+                      type="number"
+                      placeholder="8" 
+                      value={formData.visceral_fat ?? ''} 
+                      onChange={e => setFormData({ ...formData, visceral_fat: e.target.value ? parseInt(e.target.value) : null })} 
+                    />
                   </div>
                 </div>
               </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setDialogOpen(false)}>취소</Button>
-                <Button onClick={handleSave}>저장</Button>
+
+              {/* 유효성 경고 표시 */}
+              {validationWarnings.length > 0 && (
+                <div className="p-3 bg-destructive/10 border border-destructive/30 rounded-lg space-y-1">
+                  <div className="flex items-center gap-2 text-destructive font-medium text-sm">
+                    <AlertTriangle className="w-4 h-4" />
+                    <span>비정상 값이 감지되었습니다</span>
+                  </div>
+                  {validationWarnings.map((w, i) => (
+                    <p key={i} className="text-xs text-destructive/80 ml-6">{w.message}</p>
+                  ))}
+                </div>
+              )}
+
+              <DialogFooter className="gap-2 sm:gap-0">
+                {showWarningConfirm ? (
+                  <>
+                    <Button variant="outline" onClick={() => {
+                      setShowWarningConfirm(false);
+                      setValidationWarnings([]);
+                    }}>
+                      수정하기
+                    </Button>
+                    <Button onClick={handleSave}>
+                      그대로 저장
+                    </Button>
+                  </>
+                ) : (
+                  <Button onClick={handleSave} className="w-full" disabled={isAnalyzing}>
+                    {editingId ? "수정" : "저장"}
+                  </Button>
+                )}
               </DialogFooter>
             </>
           )}
