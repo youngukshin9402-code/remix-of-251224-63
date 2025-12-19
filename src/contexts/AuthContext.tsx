@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { setCurrentUserId, clearCurrentUserId } from "@/lib/localStorage";
 
 type UserType = "user" | "guardian" | "coach" | "admin";
 type AppRole = "admin" | "coach" | "guardian" | "user";
@@ -122,8 +123,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setProfile(null);
         setRoles([]);
         setLoading(false);
+        // 로그아웃 시 현재 사용자 ID 클리어 (localStorage 네임스페이스 분리)
+        clearCurrentUserId();
         return;
       }
+
+      // 로그인 시 현재 사용자 ID 설정
+      setCurrentUserId(nextSession.user.id);
 
       // Avoid potential deadlock by deferring profile work
       setTimeout(() => {
@@ -144,6 +150,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(session?.user ?? null);
 
       if (session?.user) {
+        // 초기 로드 시 현재 사용자 ID 설정
+        setCurrentUserId(session.user.id);
         Promise.all([
           ensureProfile(session.user),
           fetchRoles(session.user.id)
@@ -167,6 +175,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setSession(null);
     setProfile(null);
     setRoles([]);
+    // 로그아웃 시 현재 사용자 ID 클리어
+    clearCurrentUserId();
   };
 
   // 관리자 여부: user_roles 테이블 기반으로만 확인 (이메일 패턴 백도어 제거)

@@ -17,7 +17,6 @@ import {
   ChevronRight,
   Target,
   TrendingUp,
-  Bell,
   CheckCircle,
   RefreshCw,
   Sparkles,
@@ -107,10 +106,10 @@ export default function Dashboard() {
     setWaterTotal(todayWater);
     setWaterGoalState(getWaterSettings().dailyGoal);
 
-    // Load meal data
+    // Load meal data (fix NaN bug)
     const meals = getMealRecords();
     const todayMeals = meals.filter(m => m.date === today);
-    const totalCal = todayMeals.reduce((sum, m) => sum + m.totalCalories, 0);
+    const totalCal = todayMeals.reduce((sum, m) => sum + (Number(m.totalCalories) || 0), 0);
     setCaloriesTotal(totalCal);
 
     // Load or create daily missions
@@ -138,8 +137,14 @@ export default function Dashboard() {
     const allCompleted = updatedMissions.every(m => m.completed);
     let updatedTodayMission = { ...todayMissions, missions: updatedMissions };
 
-    // Award points if all completed and not already awarded
-    if (allCompleted && !todayMissions.pointsAwarded) {
+    // Award points if all completed and not already awarded today
+    // 포인트 일일 1회 제한: pointHistory에서 오늘 날짜의 "일일 미션 완료" 기록 확인
+    const history = getPointHistory();
+    const alreadyAwardedToday = history.some(
+      h => h.date === today && h.reason === "일일 미션 완료"
+    );
+    
+    if (allCompleted && !todayMissions.pointsAwarded && !alreadyAwardedToday) {
       updatedTodayMission.pointsAwarded = true;
       
       // Update points
@@ -147,7 +152,6 @@ export default function Dashboard() {
       setPoints(currentPoints + 100);
       
       // Add to history
-      const history = getPointHistory();
       setPointHistory([...history, {
         id: generateId(),
         date: today,
@@ -157,6 +161,9 @@ export default function Dashboard() {
       }]);
       
       toast({ title: "🎉 축하합니다!", description: "모든 할 일 완료로 100포인트 획득!" });
+    } else if (allCompleted && !todayMissions.pointsAwarded && alreadyAwardedToday) {
+      // Mark as awarded but don't give duplicate points
+      updatedTodayMission.pointsAwarded = true;
     }
 
     setTodayMissions(updatedTodayMission);
@@ -207,11 +214,7 @@ export default function Dashboard() {
 
   const calorieGoal = 2000;
 
-  // Check for incomplete items
-  const incompleteItems = [];
-  if (waterTotal < waterGoal) incompleteItems.push("물 섭취");
-  if (caloriesTotal === 0) incompleteItems.push("식사 기록");
-  if (completedMissions < totalMissions) incompleteItems.push("오늘 할 일");
+  // 미완료 항목 체크는 삭제 (걸음수 카드로 대체됨)
 
   const isGuardian = profile?.user_type === "guardian";
 
@@ -275,46 +278,40 @@ export default function Dashboard() {
             </div>
           </Link>
 
-          {/* Exercise */}
+          {/* 오늘 할 일 카드 - 클릭해도 이동 안함, 홈 체크리스트만 반영 */}
+          <div className="bg-card rounded-2xl border border-border p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-8 h-8 rounded-full bg-health-green/10 flex items-center justify-center">
+                <CheckCircle className="w-4 h-4 text-health-green" />
+              </div>
+              <span className="text-sm text-muted-foreground">오늘 할 일</span>
+            </div>
+            <p className="text-xl font-bold">{completedMissions}/{totalMissions}</p>
+            <p className="text-xs text-muted-foreground">완료</p>
+            <div className="mt-2 h-1.5 bg-muted rounded-full overflow-hidden">
+              <div
+                className="h-full bg-health-green transition-all"
+                style={{ width: `${(completedMissions / totalMissions) * 100}%` }}
+              />
+            </div>
+          </div>
+
+          {/* 걸음수 카드 - 클릭 시 운동화면 이동 */}
           <Link to="/exercise" className="block">
             <div className="bg-card rounded-2xl border border-border p-4 hover:shadow-md transition-shadow">
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-8 h-8 rounded-full bg-health-green/10 flex items-center justify-center">
                   <Dumbbell className="w-4 h-4 text-health-green" />
                 </div>
-                <span className="text-sm text-muted-foreground">오늘 할 일</span>
+                <span className="text-sm text-muted-foreground">걸음수</span>
               </div>
-              <p className="text-xl font-bold">{completedMissions}/{totalMissions}</p>
-              <p className="text-xs text-muted-foreground">완료</p>
+              <p className="text-xl font-bold">0</p>
+              <p className="text-xs text-muted-foreground">연동 준비중</p>
               <div className="mt-2 h-1.5 bg-muted rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-health-green transition-all"
-                  style={{ width: `${(completedMissions / totalMissions) * 100}%` }}
-                />
+                <div className="h-full bg-health-green transition-all" style={{ width: '0%' }} />
               </div>
             </div>
           </Link>
-
-          {/* Incomplete Alert */}
-          <div className="bg-card rounded-2xl border border-border p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-8 h-8 rounded-full bg-yellow-100 flex items-center justify-center">
-                <Bell className="w-4 h-4 text-yellow-600" />
-              </div>
-              <span className="text-sm text-muted-foreground">미완료</span>
-            </div>
-            {incompleteItems.length > 0 ? (
-              <>
-                <p className="text-xl font-bold text-yellow-600">{incompleteItems.length}개</p>
-                <p className="text-xs text-muted-foreground truncate">{incompleteItems.join(', ')}</p>
-              </>
-            ) : (
-              <>
-                <p className="text-xl font-bold text-health-green">완료!</p>
-                <p className="text-xs text-muted-foreground">오늘 할 일 완료 🎉</p>
-              </>
-            )}
-          </div>
         </div>
       </div>
 
@@ -353,25 +350,25 @@ export default function Dashboard() {
           ))}
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex gap-2 pt-2">
+        {/* Action Buttons - 모바일에서 세로 스택 */}
+        <div className="flex flex-col sm:flex-row gap-2 pt-2">
           <Button 
             variant="outline" 
             size="sm" 
-            className="flex-1"
+            className="flex-1 min-h-[40px] whitespace-normal text-sm"
             onClick={handleReshuffle}
           >
-            <RefreshCw className="w-4 h-4 mr-2" />
-            다른 제안 받기
+            <RefreshCw className="w-4 h-4 mr-2 shrink-0" />
+            <span>다른 제안 받기</span>
           </Button>
           <Button 
             variant="outline" 
             size="sm" 
-            className="flex-1"
+            className="flex-1 min-h-[40px] whitespace-normal text-sm"
             onClick={() => setShowAIDialog(true)}
           >
-            <Sparkles className="w-4 h-4 mr-2" />
-            AI에게 물어보기
+            <Sparkles className="w-4 h-4 mr-2 shrink-0" />
+            <span>AI에게 물어보기</span>
           </Button>
         </div>
 

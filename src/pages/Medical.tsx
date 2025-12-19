@@ -495,7 +495,7 @@ export default function Medical() {
     <div className="space-y-6">
       {/* 헤더 */}
       <div>
-        <h1 className="text-3xl font-bold text-foreground mb-2">의료양갱</h1>
+        <h1 className="text-3xl font-bold text-foreground mb-2">건강양갱</h1>
         <p className="text-lg text-muted-foreground">
           건강검진 결과를 쉽게 이해해보세요
         </p>

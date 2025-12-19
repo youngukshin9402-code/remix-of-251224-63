@@ -1,6 +1,7 @@
 // Local Storage Utilities for MVP Mock Data
+// 보안: 모든 사용자 데이터는 userId 기준으로 네임스페이스 처리
 
-const STORAGE_KEYS = {
+const STORAGE_KEYS_BASE = {
   USER: 'yanggaeng_user',
   WATER_LOGS: 'yanggaeng_water_logs',
   WATER_SETTINGS: 'yanggaeng_water_settings',
@@ -20,10 +21,32 @@ const STORAGE_KEYS = {
   REMINDERS: 'yanggaeng_reminders',
 };
 
+// 현재 로그인된 사용자 ID 저장소 (로그아웃 시 데이터 분리용)
+const CURRENT_USER_ID_KEY = 'yanggaeng_current_user_id';
+
+export function getCurrentUserId(): string | null {
+  return localStorage.getItem(CURRENT_USER_ID_KEY);
+}
+
+export function setCurrentUserId(userId: string): void {
+  localStorage.setItem(CURRENT_USER_ID_KEY, userId);
+}
+
+export function clearCurrentUserId(): void {
+  localStorage.removeItem(CURRENT_USER_ID_KEY);
+}
+
+// 사용자별 키 생성
+function getUserKey(baseKey: string): string {
+  const userId = getCurrentUserId();
+  return userId ? `${baseKey}_${userId}` : baseKey;
+}
+
 // Generic helpers
 export function getStorageItem<T>(key: string, defaultValue: T): T {
   try {
-    const item = localStorage.getItem(key);
+    const userKey = getUserKey(key);
+    const item = localStorage.getItem(userKey);
     return item ? JSON.parse(item) : defaultValue;
   } catch {
     return defaultValue;
@@ -32,14 +55,16 @@ export function getStorageItem<T>(key: string, defaultValue: T): T {
 
 export function setStorageItem<T>(key: string, value: T): void {
   try {
-    localStorage.setItem(key, JSON.stringify(value));
+    const userKey = getUserKey(key);
+    localStorage.setItem(userKey, JSON.stringify(value));
   } catch (e) {
     console.error('Failed to save to localStorage:', e);
   }
 }
 
 export function removeStorageItem(key: string): void {
-  localStorage.removeItem(key);
+  const userKey = getUserKey(key);
+  localStorage.removeItem(userKey);
 }
 
 // User
@@ -53,9 +78,9 @@ export interface LocalUser {
   email?: string;
 }
 
-export const getLocalUser = () => getStorageItem<LocalUser | null>(STORAGE_KEYS.USER, null);
-export const setLocalUser = (user: LocalUser) => setStorageItem(STORAGE_KEYS.USER, user);
-export const removeLocalUser = () => removeStorageItem(STORAGE_KEYS.USER);
+export const getLocalUser = () => getStorageItem<LocalUser | null>(STORAGE_KEYS_BASE.USER, null);
+export const setLocalUser = (user: LocalUser) => setStorageItem(STORAGE_KEYS_BASE.USER, user);
+export const removeLocalUser = () => removeStorageItem(STORAGE_KEYS_BASE.USER);
 
 // Water Logs
 export interface WaterLog {
@@ -74,9 +99,9 @@ export interface WaterSettings {
   eveningReminder: boolean;
 }
 
-export const getWaterLogs = () => getStorageItem<WaterLog[]>(STORAGE_KEYS.WATER_LOGS, []);
-export const setWaterLogs = (logs: WaterLog[]) => setStorageItem(STORAGE_KEYS.WATER_LOGS, logs);
-export const getWaterSettings = () => getStorageItem<WaterSettings>(STORAGE_KEYS.WATER_SETTINGS, {
+export const getWaterLogs = () => getStorageItem<WaterLog[]>(STORAGE_KEYS_BASE.WATER_LOGS, []);
+export const setWaterLogs = (logs: WaterLog[]) => setStorageItem(STORAGE_KEYS_BASE.WATER_LOGS, logs);
+export const getWaterSettings = () => getStorageItem<WaterSettings>(STORAGE_KEYS_BASE.WATER_SETTINGS, {
   dailyGoal: 2000,
   reminderEnabled: false,
   reminderStart: '08:00',
@@ -84,7 +109,7 @@ export const getWaterSettings = () => getStorageItem<WaterSettings>(STORAGE_KEYS
   reminderInterval: 90,
   eveningReminder: true,
 });
-export const setWaterSettings = (settings: WaterSettings) => setStorageItem(STORAGE_KEYS.WATER_SETTINGS, settings);
+export const setWaterSettings = (settings: WaterSettings) => setStorageItem(STORAGE_KEYS_BASE.WATER_SETTINGS, settings);
 
 // InBody Records
 export interface InBodyRecord {
@@ -99,8 +124,8 @@ export interface InBodyRecord {
   createdAt: string;
 }
 
-export const getInBodyRecords = () => getStorageItem<InBodyRecord[]>(STORAGE_KEYS.INBODY_RECORDS, []);
-export const setInBodyRecords = (records: InBodyRecord[]) => setStorageItem(STORAGE_KEYS.INBODY_RECORDS, records);
+export const getInBodyRecords = () => getStorageItem<InBodyRecord[]>(STORAGE_KEYS_BASE.INBODY_RECORDS, []);
+export const setInBodyRecords = (records: InBodyRecord[]) => setStorageItem(STORAGE_KEYS_BASE.INBODY_RECORDS, records);
 
 // Weight Records
 export interface WeightRecord {
@@ -117,10 +142,10 @@ export interface WeightGoal {
   startDate: string;
 }
 
-export const getWeightRecords = () => getStorageItem<WeightRecord[]>(STORAGE_KEYS.WEIGHT_RECORDS, []);
-export const setWeightRecords = (records: WeightRecord[]) => setStorageItem(STORAGE_KEYS.WEIGHT_RECORDS, records);
-export const getWeightGoal = () => getStorageItem<WeightGoal | null>(STORAGE_KEYS.WEIGHT_GOAL, null);
-export const setWeightGoal = (goal: WeightGoal | null) => setStorageItem(STORAGE_KEYS.WEIGHT_GOAL, goal);
+export const getWeightRecords = () => getStorageItem<WeightRecord[]>(STORAGE_KEYS_BASE.WEIGHT_RECORDS, []);
+export const setWeightRecords = (records: WeightRecord[]) => setStorageItem(STORAGE_KEYS_BASE.WEIGHT_RECORDS, records);
+export const getWeightGoal = () => getStorageItem<WeightGoal | null>(STORAGE_KEYS_BASE.WEIGHT_GOAL, null);
+export const setWeightGoal = (goal: WeightGoal | null) => setStorageItem(STORAGE_KEYS_BASE.WEIGHT_GOAL, goal);
 
 // Health Checkup
 export interface HealthCheckupRecord {
@@ -138,8 +163,8 @@ export interface HealthCheckupRecord {
   createdAt: string;
 }
 
-export const getHealthCheckupRecords = () => getStorageItem<HealthCheckupRecord[]>(STORAGE_KEYS.HEALTH_CHECKUP, []);
-export const setHealthCheckupRecords = (records: HealthCheckupRecord[]) => setStorageItem(STORAGE_KEYS.HEALTH_CHECKUP, records);
+export const getHealthCheckupRecords = () => getStorageItem<HealthCheckupRecord[]>(STORAGE_KEYS_BASE.HEALTH_CHECKUP, []);
+export const setHealthCheckupRecords = (records: HealthCheckupRecord[]) => setStorageItem(STORAGE_KEYS_BASE.HEALTH_CHECKUP, records);
 
 // Meal Records
 export interface MealRecord {
@@ -159,8 +184,8 @@ export interface MealRecord {
   createdAt: string;
 }
 
-export const getMealRecords = () => getStorageItem<MealRecord[]>(STORAGE_KEYS.MEAL_RECORDS, []);
-export const setMealRecords = (records: MealRecord[]) => setStorageItem(STORAGE_KEYS.MEAL_RECORDS, records);
+export const getMealRecords = () => getStorageItem<MealRecord[]>(STORAGE_KEYS_BASE.MEAL_RECORDS, []);
+export const setMealRecords = (records: MealRecord[]) => setStorageItem(STORAGE_KEYS_BASE.MEAL_RECORDS, records);
 
 // Exercise Logs
 export interface ExerciseLog {
@@ -170,8 +195,8 @@ export interface ExerciseLog {
   createdAt: string;
 }
 
-export const getExerciseLogs = () => getStorageItem<ExerciseLog[]>(STORAGE_KEYS.EXERCISE_LOGS, []);
-export const setExerciseLogs = (logs: ExerciseLog[]) => setStorageItem(STORAGE_KEYS.EXERCISE_LOGS, logs);
+export const getExerciseLogs = () => getStorageItem<ExerciseLog[]>(STORAGE_KEYS_BASE.EXERCISE_LOGS, []);
+export const setExerciseLogs = (logs: ExerciseLog[]) => setStorageItem(STORAGE_KEYS_BASE.EXERCISE_LOGS, logs);
 
 // Gym Records
 export interface GymSet {
@@ -193,8 +218,8 @@ export interface GymRecord {
   createdAt: string;
 }
 
-export const getGymRecords = () => getStorageItem<GymRecord[]>(STORAGE_KEYS.GYM_RECORDS, []);
-export const setGymRecords = (records: GymRecord[]) => setStorageItem(STORAGE_KEYS.GYM_RECORDS, records);
+export const getGymRecords = () => getStorageItem<GymRecord[]>(STORAGE_KEYS_BASE.GYM_RECORDS, []);
+export const setGymRecords = (records: GymRecord[]) => setStorageItem(STORAGE_KEYS_BASE.GYM_RECORDS, records);
 
 // Daily Missions
 export interface DailyMission {
@@ -208,8 +233,8 @@ export interface DailyMission {
   pointsAwarded: boolean;
 }
 
-export const getDailyMissions = () => getStorageItem<DailyMission[]>(STORAGE_KEYS.MISSIONS, []);
-export const setDailyMissions = (missions: DailyMission[]) => setStorageItem(STORAGE_KEYS.MISSIONS, missions);
+export const getDailyMissions = () => getStorageItem<DailyMission[]>(STORAGE_KEYS_BASE.MISSIONS, []);
+export const setDailyMissions = (missions: DailyMission[]) => setStorageItem(STORAGE_KEYS_BASE.MISSIONS, missions);
 
 // Points
 export interface PointHistory {
@@ -220,10 +245,10 @@ export interface PointHistory {
   type: 'earn' | 'spend';
 }
 
-export const getPoints = () => getStorageItem<number>(STORAGE_KEYS.POINTS, 0);
-export const setPoints = (points: number) => setStorageItem(STORAGE_KEYS.POINTS, points);
-export const getPointHistory = () => getStorageItem<PointHistory[]>(STORAGE_KEYS.POINT_HISTORY, []);
-export const setPointHistory = (history: PointHistory[]) => setStorageItem(STORAGE_KEYS.POINT_HISTORY, history);
+export const getPoints = () => getStorageItem<number>(STORAGE_KEYS_BASE.POINTS, 0);
+export const setPoints = (points: number) => setStorageItem(STORAGE_KEYS_BASE.POINTS, points);
+export const getPointHistory = () => getStorageItem<PointHistory[]>(STORAGE_KEYS_BASE.POINT_HISTORY, []);
+export const setPointHistory = (history: PointHistory[]) => setStorageItem(STORAGE_KEYS_BASE.POINT_HISTORY, history);
 
 // Orders
 export interface Order {
@@ -236,8 +261,8 @@ export interface Order {
   paymentMethod?: string;
 }
 
-export const getOrders = () => getStorageItem<Order[]>(STORAGE_KEYS.ORDERS, []);
-export const setOrders = (orders: Order[]) => setStorageItem(STORAGE_KEYS.ORDERS, orders);
+export const getOrders = () => getStorageItem<Order[]>(STORAGE_KEYS_BASE.ORDERS, []);
+export const setOrders = (orders: Order[]) => setStorageItem(STORAGE_KEYS_BASE.ORDERS, orders);
 
 // Guardian Settings
 export interface GuardianSettings {
@@ -249,10 +274,10 @@ export interface GuardianSettings {
   };
 }
 
-export const getGuardianSettings = () => getStorageItem<GuardianSettings>(STORAGE_KEYS.GUARDIAN_SETTINGS, {
+export const getGuardianSettings = () => getStorageItem<GuardianSettings>(STORAGE_KEYS_BASE.GUARDIAN_SETTINGS, {
   permissions: { viewSummary: true, viewDetails: false }
 });
-export const setGuardianSettings = (settings: GuardianSettings) => setStorageItem(STORAGE_KEYS.GUARDIAN_SETTINGS, settings);
+export const setGuardianSettings = (settings: GuardianSettings) => setStorageItem(STORAGE_KEYS_BASE.GUARDIAN_SETTINGS, settings);
 
 // Notification Settings
 export interface NotificationSettings {
@@ -262,13 +287,13 @@ export interface NotificationSettings {
   coachingReminder: boolean;
 }
 
-export const getNotificationSettings = () => getStorageItem<NotificationSettings>(STORAGE_KEYS.NOTIFICATION_SETTINGS, {
+export const getNotificationSettings = () => getStorageItem<NotificationSettings>(STORAGE_KEYS_BASE.NOTIFICATION_SETTINGS, {
   mealReminder: true,
   waterReminder: true,
   exerciseReminder: true,
   coachingReminder: true,
 });
-export const setNotificationSettings = (settings: NotificationSettings) => setStorageItem(STORAGE_KEYS.NOTIFICATION_SETTINGS, settings);
+export const setNotificationSettings = (settings: NotificationSettings) => setStorageItem(STORAGE_KEYS_BASE.NOTIFICATION_SETTINGS, settings);
 
 // Reminders (scheduled notifications)
 export interface Reminder {
@@ -278,14 +303,18 @@ export interface Reminder {
   enabled: boolean;
 }
 
-export const getReminders = () => getStorageItem<Reminder[]>(STORAGE_KEYS.REMINDERS, []);
-export const setReminders = (reminders: Reminder[]) => setStorageItem(STORAGE_KEYS.REMINDERS, reminders);
+export const getReminders = () => getStorageItem<Reminder[]>(STORAGE_KEYS_BASE.REMINDERS, []);
+export const setReminders = (reminders: Reminder[]) => setStorageItem(STORAGE_KEYS_BASE.REMINDERS, reminders);
 
-// Clear all data (for account deletion)
+// Clear all data for current user (for account deletion)
 export const clearAllData = () => {
-  Object.values(STORAGE_KEYS).forEach(key => {
-    localStorage.removeItem(key);
-  });
+  const userId = getCurrentUserId();
+  if (userId) {
+    Object.values(STORAGE_KEYS_BASE).forEach(key => {
+      localStorage.removeItem(`${key}_${userId}`);
+    });
+  }
+  clearCurrentUserId();
 };
 
 // Generate UUID
