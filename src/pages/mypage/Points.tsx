@@ -46,21 +46,29 @@ export default function PointsPage() {
     fetchHistory();
   }, [user, refreshPoints]);
 
-  // 중복 제거 로직: "일일 미션 완료"는 같은 날짜 + reason + amount 기준 1개만 카운트
+  // 미션 관련 reason들 (하루 1회만 카운트)
+  const DAILY_MISSION_REASONS = ['일일 미션 완료', '오늘의 미션 3개 완료'];
+  
+  // 중복 제거 로직: 미션 관련 reason은 같은 날짜에 1개만 카운트
   const getDeduplicatedHistory = () => {
-    const seen = new Set<string>();
+    const seenDates = new Set<string>(); // 미션 적립된 날짜 추적
     const deduplicated: PointHistoryItem[] = [];
     const duplicateIds = new Set<string>();
     
-    history.forEach(item => {
+    // 시간순 정렬 (오래된 것 먼저) - 첫 번째 기록만 유효하게
+    const sortedHistory = [...history].sort((a, b) => 
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    );
+    
+    sortedHistory.forEach(item => {
       const dateStr = item.created_at.split('T')[0]; // YYYY-MM-DD
-      // "일일 미션 완료" reason만 중복 제거 대상
-      if (item.reason === '일일 미션 완료') {
-        const key = `${dateStr}_${item.reason}_${item.amount}`;
-        if (seen.has(key)) {
+      
+      // 미션 관련 reason은 하루 1회만
+      if (DAILY_MISSION_REASONS.includes(item.reason)) {
+        if (seenDates.has(dateStr)) {
           duplicateIds.add(item.id);
         } else {
-          seen.add(key);
+          seenDates.add(dateStr);
           deduplicated.push(item);
         }
       } else {
