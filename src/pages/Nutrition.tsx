@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, forwardRef } from "react";
 import { format, isSameDay } from "date-fns";
 import { ko } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
@@ -98,7 +98,7 @@ const mockAnalyzeFood = async (imageUrl: string): Promise<AnalyzedFood[]> => {
   }));
 };
 
-export default function Nutrition() {
+const Nutrition = forwardRef<HTMLDivElement>(function Nutrition(_, pageRef) {
   const { toast } = useToast();
   const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -431,7 +431,7 @@ export default function Nutrition() {
   }
 
   return (
-    <div className="space-y-6 pb-8">
+    <div ref={pageRef} className="space-y-6 pb-8">
       {/* 오프라인 배너 */}
       {!isOnline && (
         <div className="bg-yellow-100 dark:bg-yellow-900 border border-yellow-300 dark:border-yellow-700 rounded-xl p-3 flex items-center gap-2">
@@ -642,7 +642,11 @@ export default function Nutrition() {
                               <img
                                 src={record.image_url}
                                 alt="식사"
-                                className="w-20 h-20 rounded-xl object-cover"
+                                className="w-20 h-20 rounded-xl object-cover bg-muted"
+                                onError={(e) => {
+                                  // Hide broken image
+                                  (e.target as HTMLImageElement).style.display = 'none';
+                                }}
                               />
                             )}
                             <div className="flex-1">
@@ -822,7 +826,10 @@ export default function Nutrition() {
             <img
               src={uploadedImage}
               alt="업로드된 이미지"
-              className="w-full h-48 object-cover rounded-2xl"
+              className="w-full h-48 object-cover rounded-2xl bg-muted"
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = 'none';
+              }}
             />
           )}
 
@@ -971,4 +978,6 @@ export default function Nutrition() {
       )}
     </div>
   );
-}
+});
+
+export default Nutrition;

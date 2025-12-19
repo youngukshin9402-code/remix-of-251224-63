@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, forwardRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,7 +20,7 @@ import {
 
 type Step = "info" | "request" | "success";
 
-export default function Shop() {
+const Shop = forwardRef<HTMLDivElement>(function Shop(_, ref) {
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -50,7 +50,7 @@ export default function Shop() {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div ref={ref} className="min-h-screen bg-background pb-24">
       {/* Header */}
       <div className="bg-gradient-to-r from-primary to-yanggaeng-amber text-primary-foreground p-6">
         <div className="flex items-center gap-3 mb-2">
@@ -306,4 +306,6 @@ export default function Shop() {
       </div>
     </div>
   );
-}
+});
+
+export default Shop;

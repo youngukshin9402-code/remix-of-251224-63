@@ -341,6 +341,33 @@ export function useMealRecords() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
 
+  // Helper to resolve image URLs (signed URLs for storage paths)
+  const resolveImageUrl = useCallback(async (imageUrl: string | null): Promise<string | null> => {
+    if (!imageUrl) return null;
+    
+    // base64 images - return as-is
+    if (imageUrl.startsWith('data:')) return imageUrl;
+    
+    // Already a full URL (signed or public) - return as-is
+    if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) return imageUrl;
+    
+    // Storage path - generate signed URL
+    try {
+      const { data, error } = await supabase.storage
+        .from('food-logs')
+        .createSignedUrl(imageUrl, 3600); // 1 hour expiry
+      
+      if (error || !data?.signedUrl) {
+        console.error('Failed to create signed URL:', error);
+        return null;
+      }
+      return data.signedUrl;
+    } catch (err) {
+      console.error('Error resolving image URL:', err);
+      return null;
+    }
+  }, []);
+
   const fetchFromServer = useCallback(async () => {
     if (!user) {
       setData([]);
@@ -358,8 +385,17 @@ export function useMealRecords() {
       if (error) throw error;
       
       const parsed = (serverData || []).map(parseMealRecord);
-      setData(parsed);
-      localStorage.setItem('yanggaeng_meal_records', JSON.stringify(parsed));
+      
+      // Resolve image URLs for all records
+      const withResolvedImages = await Promise.all(
+        parsed.map(async (record) => ({
+          ...record,
+          image_url: await resolveImageUrl(record.image_url),
+        }))
+      );
+      
+      setData(withResolvedImages);
+      localStorage.setItem('yanggaeng_meal_records', JSON.stringify(withResolvedImages));
     } catch (error) {
       console.error('Error fetching meal records:', error);
       const cached = localStorage.getItem('yanggaeng_meal_records');
@@ -367,7 +403,7 @@ export function useMealRecords() {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, resolveImageUrl]);
 
   useEffect(() => {
     fetchFromServer();
@@ -382,13 +418,15 @@ export function useMealRecords() {
     
     try {
       let imageUrl = item.image_url;
+      let storagePath: string | null = null;
       
       // Upload image to storage if provided
       if (options?.imageFile) {
         const { uploadMealImage } = await import('@/lib/imageUpload');
         const localId = options.localId || `upload_${Date.now()}`;
-        const { url } = await uploadMealImage(user.id, options.imageFile, localId);
-        imageUrl = url;
+        const result = await uploadMealImage(user.id, options.imageFile, localId);
+        imageUrl = result.url; // This is now a signed URL
+        storagePath = result.path;
       }
       
       const { data: newItem, error } = await supabase
@@ -396,7 +434,7 @@ export function useMealRecords() {
         .insert({ 
           date: item.date,
           meal_type: item.meal_type,
-          image_url: imageUrl,
+          image_url: storagePath || imageUrl, // Store path in DB, not signed URL
           total_calories: item.total_calories,
           user_id: user.id,
           foods: item.foods as unknown as Json
@@ -407,6 +445,8 @@ export function useMealRecords() {
       if (error) throw error;
       
       const parsed = parseMealRecord(newItem);
+      // Use the signed URL we already have for immediate display
+      parsed.image_url = imageUrl;
       setData(prev => [parsed, ...prev]);
       return { data: parsed, error: null };
     } catch (error) {
