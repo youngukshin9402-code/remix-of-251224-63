@@ -56,6 +56,7 @@ export async function compressImage(file: File): Promise<Blob> {
 
 /**
  * Upload image to Supabase Storage with compression
+ * For private buckets, we store the path and generate signed URLs on demand
  */
 export async function uploadMealImage(
   userId: string,
@@ -78,11 +79,54 @@ export async function uploadMealImage(
     throw new Error(`이미지 업로드 실패: ${error.message}`);
   }
 
-  const { data: urlData } = supabase.storage
+  // Generate a signed URL (valid for 1 hour) for immediate use
+  const { data: signedUrlData, error: signedError } = await supabase.storage
     .from('food-logs')
-    .getPublicUrl(data.path);
+    .createSignedUrl(data.path, 3600);
 
-  return { url: urlData.publicUrl, path: data.path };
+  if (signedError || !signedUrlData?.signedUrl) {
+    console.error('Failed to create signed URL:', signedError);
+    // Return path for later resolution
+    return { url: data.path, path: data.path };
+  }
+
+  return { url: signedUrlData.signedUrl, path: data.path };
+}
+
+/**
+ * Get a signed URL for a storage path (for private buckets)
+ * Returns null if the path is empty or invalid
+ */
+export async function getSignedImageUrl(
+  bucket: string,
+  path: string,
+  expiresIn: number = 3600
+): Promise<string | null> {
+  if (!path || path.startsWith('data:')) {
+    // It's either empty or a base64 string
+    return path || null;
+  }
+  
+  // If it's already a full URL (signed or public), return as-is
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    return path;
+  }
+
+  try {
+    const { data, error } = await supabase.storage
+      .from(bucket)
+      .createSignedUrl(path, expiresIn);
+
+    if (error || !data?.signedUrl) {
+      console.error('Failed to get signed URL:', error);
+      return null;
+    }
+
+    return data.signedUrl;
+  } catch (err) {
+    console.error('Error getting signed URL:', err);
+    return null;
+  }
 }
 
 /**

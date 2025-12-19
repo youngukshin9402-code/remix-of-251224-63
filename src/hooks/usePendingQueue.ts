@@ -101,13 +101,16 @@ export function usePendingQueue() {
 
     try {
       if (item.type === 'meal_record') {
-        let imageUrl = item.data.image_url as string | null;
+        let imagePath: string | null = null;
         
         // If image is base64, upload to storage first
-        if (isBase64Image(imageUrl)) {
-          const blob = base64ToBlob(imageUrl!);
-          const { url } = await uploadMealImage(user.id, blob, item.localId);
-          imageUrl = url;
+        if (isBase64Image(item.data.image_url as string | null)) {
+          const blob = base64ToBlob(item.data.image_url as string);
+          const result = await uploadMealImage(user.id, blob, item.localId);
+          imagePath = result.path; // Store the path, not the signed URL
+        } else {
+          // If it's already a path or URL, keep as-is for now
+          imagePath = item.data.image_url as string | null;
         }
 
         // Use UPSERT with client_id for idempotency
@@ -118,7 +121,7 @@ export function usePendingQueue() {
             client_id: item.localId,
             date: item.data.date as string,
             meal_type: item.data.meal_type as string,
-            image_url: imageUrl,
+            image_url: imagePath,
             foods: item.data.foods as Json,
             total_calories: item.data.total_calories as number,
           }, {
