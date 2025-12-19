@@ -348,6 +348,7 @@ export type Database = {
         Row: {
           coach_comment: string | null
           created_at: string | null
+          exam_date: string | null
           health_age: number | null
           health_tags: string[] | null
           id: string
@@ -361,6 +362,7 @@ export type Database = {
         Insert: {
           coach_comment?: string | null
           created_at?: string | null
+          exam_date?: string | null
           health_age?: number | null
           health_tags?: string[] | null
           id?: string
@@ -374,6 +376,7 @@ export type Database = {
         Update: {
           coach_comment?: string | null
           created_at?: string | null
+          exam_date?: string | null
           health_age?: number | null
           health_tags?: string[] | null
           id?: string

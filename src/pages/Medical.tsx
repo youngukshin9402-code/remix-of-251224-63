@@ -1,5 +1,7 @@
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Camera,
   Upload,
@@ -8,12 +10,16 @@ import {
   CheckCircle2,
   AlertCircle,
   Loader2,
-  ChevronRight,
-  History,
+  Trash2,
+  Edit2,
   Share2,
   MessageCircle,
+  CalendarIcon,
+  Activity,
+  Scale,
 } from "lucide-react";
 import { useHealthRecords, HealthRecord, HealthRecordItem } from "@/hooks/useHealthRecords";
+import { useInBodyRecords } from "@/hooks/useServerSync";
 import { format } from "date-fns";
 import { ko } from "date-fns/locale";
 import { toast } from "sonner";
@@ -22,7 +28,26 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
 
 function StatusBadge({ status }: { status: "normal" | "warning" | "danger" }) {
   const styles = {
@@ -68,61 +93,238 @@ function HealthItemCard({ item }: { item: HealthRecordItem }) {
   );
 }
 
-function RecordCard({ 
-  record, 
-  onClick, 
-  isActive 
-}: { 
-  record: HealthRecord; 
-  onClick: () => void;
-  isActive: boolean;
-}) {
-  const statusLabels = {
-    uploading: "업로드 중",
-    analyzing: "분석 중",
-    pending_review: "검토 대기",
-    completed: "완료",
-  };
-  const statusColors = {
-    uploading: "text-blue-600",
-    analyzing: "text-primary",
-    pending_review: "text-amber-600",
-    completed: "text-emerald-600",
+// InBody 섹션 컴포넌트
+function InBodySection() {
+  const { data: records, loading, add, update, remove } = useInBodyRecords();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [formData, setFormData] = useState({
+    date: new Date().toISOString().split('T')[0],
+    weight: 0,
+    skeletal_muscle: null as number | null,
+    body_fat: null as number | null,
+    body_fat_percent: null as number | null,
+    bmr: null as number | null,
+    visceral_fat: null as number | null,
+  });
+
+  const handleSave = async () => {
+    if (!formData.weight || !formData.date) {
+      toast.error("체중과 날짜는 필수입니다");
+      return;
+    }
+
+    if (editingId) {
+      const result = await update(editingId, formData);
+      if (result.error) {
+        toast.error("수정 실패");
+      } else {
+        toast.success("수정되었습니다");
+      }
+    } else {
+      const result = await add(formData);
+      if (result.error) {
+        toast.error("저장 실패");
+      } else {
+        toast.success("저장되었습니다");
+      }
+    }
+    setDialogOpen(false);
+    resetForm();
   };
 
-  return (
-    <button
-      onClick={onClick}
-      className={`w-full text-left p-4 rounded-xl border transition-colors ${
-        isActive 
-          ? "border-primary bg-primary/5" 
-          : "border-border bg-card hover:border-primary/50"
-      }`}
-    >
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="font-medium">
-            {format(new Date(record.created_at), "yyyy년 M월 d일", { locale: ko })}
-          </p>
-          <p className={`text-sm ${statusColors[record.status]}`}>
-            {statusLabels[record.status]}
-          </p>
-        </div>
-        <ChevronRight className="w-5 h-5 text-muted-foreground" />
+  const handleEdit = (record: typeof records[0]) => {
+    setEditingId(record.id);
+    setFormData({
+      date: record.date,
+      weight: Number(record.weight),
+      skeletal_muscle: record.skeletal_muscle ? Number(record.skeletal_muscle) : null,
+      body_fat: record.body_fat ? Number(record.body_fat) : null,
+      body_fat_percent: record.body_fat_percent ? Number(record.body_fat_percent) : null,
+      bmr: record.bmr,
+      visceral_fat: record.visceral_fat,
+    });
+    setDialogOpen(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    const result = await remove(id);
+    if (result.error) {
+      toast.error("삭제 실패");
+    } else {
+      toast.success("삭제되었습니다");
+    }
+  };
+
+  const resetForm = () => {
+    setEditingId(null);
+    setFormData({
+      date: new Date().toISOString().split('T')[0],
+      weight: 0,
+      skeletal_muscle: null,
+      body_fat: null,
+      body_fat_percent: null,
+      bmr: null,
+      visceral_fat: null,
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
-    </button>
+    );
+  }
+
+  const latestRecord = records[0];
+
+  return (
+    <div className="space-y-6">
+      {/* 최근 기록 요약 */}
+      {latestRecord ? (
+        <div className="bg-card rounded-2xl border border-border p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold">최근 기록</h3>
+            <span className="text-sm text-muted-foreground">{latestRecord.date}</span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-muted/50 rounded-xl p-3">
+              <div className="flex items-center gap-2 mb-1">
+                <Scale className="w-4 h-4 text-primary" />
+                <span className="text-sm text-muted-foreground">체중</span>
+              </div>
+              <span className="text-xl font-bold">{Number(latestRecord.weight).toFixed(1)}kg</span>
+            </div>
+            <div className="bg-muted/50 rounded-xl p-3">
+              <div className="flex items-center gap-2 mb-1">
+                <Activity className="w-4 h-4 text-health-blue" />
+                <span className="text-sm text-muted-foreground">골격근량</span>
+              </div>
+              <span className="text-xl font-bold">{latestRecord.skeletal_muscle ? `${Number(latestRecord.skeletal_muscle).toFixed(1)}kg` : '-'}</span>
+            </div>
+            <div className="bg-muted/50 rounded-xl p-3">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-sm text-muted-foreground">체지방률</span>
+              </div>
+              <span className="text-xl font-bold">{latestRecord.body_fat_percent ? `${Number(latestRecord.body_fat_percent).toFixed(1)}%` : '-'}</span>
+            </div>
+            <div className="bg-muted/50 rounded-xl p-3">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-sm text-muted-foreground">기초대사량</span>
+              </div>
+              <span className="text-xl font-bold">{latestRecord.bmr ? `${latestRecord.bmr}kcal` : '-'}</span>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-card rounded-2xl border border-border p-8 text-center">
+          <Scale className="w-12 h-12 mx-auto mb-3 text-muted-foreground/30" />
+          <p className="text-muted-foreground mb-4">인바디 기록이 없습니다</p>
+        </div>
+      )}
+
+      {/* 기록 추가 버튼 */}
+      <Button className="w-full h-12" onClick={() => { resetForm(); setDialogOpen(true); }}>
+        인바디 기록 추가
+      </Button>
+
+      {/* 기록 목록 */}
+      {records.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="font-semibold">기록 목록</h3>
+          {records.map(record => (
+            <div key={record.id} className="bg-card rounded-xl border border-border p-4 flex items-center justify-between">
+              <div>
+                <p className="font-medium">{record.date}</p>
+                <p className="text-sm text-muted-foreground">
+                  {Number(record.weight).toFixed(1)}kg / 골격근 {record.skeletal_muscle ? Number(record.skeletal_muscle).toFixed(1) : '-'}kg
+                </p>
+              </div>
+              <div className="flex gap-1">
+                <Button variant="ghost" size="icon" onClick={() => handleEdit(record)}>
+                  <Edit2 className="w-4 h-4" />
+                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="icon">
+                      <Trash2 className="w-4 h-4 text-destructive" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>삭제하시겠습니까?</AlertDialogTitle>
+                      <AlertDialogDescription>이 작업은 되돌릴 수 없습니다.</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>취소</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => handleDelete(record.id)}>삭제</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* 인바디 입력 다이얼로그 */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-sm max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingId ? "인바디 수정" : "인바디 기록"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">날짜 *</label>
+              <Input type="date" value={formData.date} onChange={e => setFormData({ ...formData, date: e.target.value })} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">체중 (kg) *</label>
+                <Input type="number" step="0.1" value={formData.weight || ''} onChange={e => setFormData({ ...formData, weight: parseFloat(e.target.value) || 0 })} />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">골격근량 (kg)</label>
+                <Input type="number" step="0.1" value={formData.skeletal_muscle || ''} onChange={e => setFormData({ ...formData, skeletal_muscle: parseFloat(e.target.value) || null })} />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">체지방률 (%)</label>
+                <Input type="number" step="0.1" value={formData.body_fat_percent || ''} onChange={e => setFormData({ ...formData, body_fat_percent: parseFloat(e.target.value) || null })} />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">기초대사량</label>
+                <Input type="number" value={formData.bmr || ''} onChange={e => setFormData({ ...formData, bmr: parseInt(e.target.value) || null })} />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>취소</Button>
+            <Button onClick={handleSave}>저장</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }
 
 export default function Medical() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showShareDialog, setShowShareDialog] = useState(false);
+  const [showUploadDialog, setShowUploadDialog] = useState(false);
+  const [examDate, setExamDate] = useState<Date>(new Date());
+  const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
+  const [editExamDate, setEditExamDate] = useState<Date | undefined>(undefined);
+  
   const {
     records,
     currentRecord,
     isLoading,
     isUploading,
     uploadHealthCheckup,
+    deleteRecord,
+    updateExamDate,
     setCurrentRecord,
   } = useHealthRecords();
 
@@ -132,13 +334,11 @@ export default function Medical() {
     const healthAge = currentRecord.health_age;
     const summary = currentRecord.parsed_data.summary || "건강검진 결과가 도착했어요!";
 
-    // Check if Kakao SDK is available
     if (typeof window !== "undefined" && (window as any).Kakao) {
       const Kakao = (window as any).Kakao;
       
       if (!Kakao.isInitialized()) {
-        // In production, you would initialize with your app key
-        toast.error("카카오 SDK가 초기화되지 않았어요. 관리자에게 문의해주세요.");
+        toast.error("카카오 SDK가 초기화되지 않았어요.");
         return;
       }
 
@@ -149,30 +349,20 @@ export default function Medical() {
           description: healthAge 
             ? `건강나이: ${healthAge}세\n${summary.slice(0, 50)}...` 
             : summary.slice(0, 100),
-          imageUrl: "https://your-domain.com/og-image.png", // Replace with actual image
+          imageUrl: "https://your-domain.com/og-image.png",
           link: {
             mobileWebUrl: window.location.origin,
             webUrl: window.location.origin,
           },
         },
-        buttons: [
-          {
-            title: "자세히 보기",
-            link: {
-              mobileWebUrl: window.location.origin,
-              webUrl: window.location.origin,
-            },
-          },
-        ],
       });
     } else {
-      // Fallback: Copy to clipboard
       const shareText = healthAge
         ? `[건강양갱] 건강검진 결과\n건강나이: ${healthAge}세\n${summary}`
         : `[건강양갱] 건강검진 결과\n${summary}`;
 
       navigator.clipboard.writeText(shareText);
-      toast.success("공유 내용이 복사되었어요! 카카오톡에 붙여넣기 해주세요.");
+      toast.success("공유 내용이 복사되었어요!");
     }
     setShowShareDialog(false);
   };
@@ -198,30 +388,47 @@ export default function Medical() {
 
     const fileArray = Array.from(files);
     
-    // Validate file types and sizes
     const validFiles = fileArray.filter((file) => {
-      if (!file.type.startsWith("image/")) {
-        return false;
-      }
-      if (file.size > 10 * 1024 * 1024) {
-        return false;
-      }
+      if (!file.type.startsWith("image/")) return false;
+      if (file.size > 10 * 1024 * 1024) return false;
       return true;
     });
 
-    if (validFiles.length === 0) {
-      return;
-    }
+    if (validFiles.length === 0) return;
 
-    await uploadHealthCheckup(validFiles);
+    await uploadHealthCheckup(validFiles, format(examDate, "yyyy-MM-dd"));
+    setShowUploadDialog(false);
     
-    // Reset input
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
   };
 
-  const renderContent = () => {
+  const openUploadDialog = () => {
+    setExamDate(new Date());
+    setShowUploadDialog(true);
+  };
+
+  const handleDeleteRecord = async (id: string) => {
+    await deleteRecord(id);
+    if (records.length > 1) {
+      setCurrentRecord(records.find(r => r.id !== id) || null);
+    }
+  };
+
+  const openEditDate = (record: HealthRecord) => {
+    setEditingRecordId(record.id);
+    setEditExamDate(record.exam_date ? new Date(record.exam_date) : new Date());
+  };
+
+  const saveEditDate = async () => {
+    if (editingRecordId && editExamDate) {
+      await updateExamDate(editingRecordId, format(editExamDate, "yyyy-MM-dd"));
+    }
+    setEditingRecordId(null);
+  };
+
+  const renderHealthCheckupContent = () => {
     if (isLoading) {
       return (
         <div className="text-center py-12">
@@ -246,249 +453,146 @@ export default function Medical() {
             AI가 쉽게 분석해드려요.
           </p>
 
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            multiple
-            onChange={handleFileSelect}
-            className="hidden"
-          />
-
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button 
-              size="lg" 
-              className="h-14 px-8 text-lg"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isUploading}
-            >
-              {isUploading ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <Camera className="w-5 h-5" />
-              )}
-              카메라로 촬영
-            </Button>
-            <Button 
-              size="lg" 
-              variant="outline"
-              className="h-14 px-8 text-lg"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isUploading}
-            >
-              <Upload className="w-5 h-5" />
-              갤러리에서 선택
-            </Button>
-          </div>
-
-          <p className="text-sm text-muted-foreground mt-6">
-            JPG, PNG 파일 (최대 10MB)
-          </p>
+          <Button size="lg" className="h-14 px-8 text-lg" onClick={openUploadDialog}>
+            <Upload className="w-5 h-5 mr-2" />
+            검진 결과 업로드
+          </Button>
         </div>
       );
     }
 
-    switch (currentRecord.status) {
-      case "uploading":
-        return (
-          <div className="text-center py-12">
-            <Loader2 className="w-16 h-16 mx-auto mb-6 text-primary animate-spin" />
-            <h2 className="text-2xl font-semibold text-foreground mb-2">
-              업로드 중...
-            </h2>
-            <p className="text-lg text-muted-foreground">
-              잠시만 기다려주세요.
-            </p>
+    const statusLabels = {
+      uploading: "업로드 중",
+      analyzing: "분석 중",
+      pending_review: "검토 대기",
+      completed: "완료",
+    };
+
+    if (currentRecord.status === "uploading" || currentRecord.status === "analyzing") {
+      return (
+        <div className="text-center py-12">
+          <div className="w-24 h-24 mx-auto mb-6 rounded-3xl bg-primary/10 flex items-center justify-center">
+            <Clock className="w-12 h-12 text-primary animate-pulse" />
           </div>
-        );
+          <h2 className="text-2xl font-semibold text-foreground mb-2">
+            AI가 분석 중이에요
+          </h2>
+          <p className="text-lg text-muted-foreground">1~2분 정도 소요됩니다.</p>
+        </div>
+      );
+    }
 
-      case "analyzing":
-        return (
-          <div className="text-center py-12">
-            <div className="w-24 h-24 mx-auto mb-6 rounded-3xl bg-primary/10 flex items-center justify-center">
-              <Clock className="w-12 h-12 text-primary animate-pulse" />
-            </div>
-            <h2 className="text-2xl font-semibold text-foreground mb-2">
-              AI가 분석 중이에요
-            </h2>
-            <p className="text-lg text-muted-foreground mb-4">
-              1~2분 정도 소요될 수 있어요.
-            </p>
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary">
-              <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-              분석 중
-            </div>
+    if (currentRecord.status === "pending_review") {
+      return (
+        <div className="text-center py-12">
+          <div className="w-24 h-24 mx-auto mb-6 rounded-3xl bg-amber-100 flex items-center justify-center">
+            <AlertCircle className="w-12 h-12 text-amber-600" />
           </div>
-        );
+          <h2 className="text-2xl font-semibold text-foreground mb-2">
+            코치님이 검토 중이에요
+          </h2>
+          <p className="text-lg text-muted-foreground mb-4">
+            AI 분석이 완료되었어요.
+          </p>
 
-      case "pending_review":
-        return (
-          <div className="text-center py-12">
-            <div className="w-24 h-24 mx-auto mb-6 rounded-3xl bg-amber-100 flex items-center justify-center">
-              <AlertCircle className="w-12 h-12 text-amber-600" />
+          {currentRecord.parsed_data && (
+            <div className="mt-6 text-left bg-card rounded-2xl p-5 border border-border">
+              <h3 className="font-semibold mb-3">AI 분석 결과 (검토 전)</h3>
+              <p className="text-muted-foreground mb-4">{currentRecord.parsed_data.summary}</p>
+              <div className="space-y-2">
+                {currentRecord.parsed_data.items.slice(0, 3).map((item, idx) => (
+                  <HealthItemCard key={idx} item={item} />
+                ))}
+              </div>
             </div>
-            <h2 className="text-2xl font-semibold text-foreground mb-2">
-              코치님이 검토 중이에요
-            </h2>
-            <p className="text-lg text-muted-foreground mb-4">
-              AI 분석이 완료되었어요.
-              <br />
-              코치님의 검토 후 결과를 알려드릴게요.
-            </p>
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-100 text-amber-700">
-              <Clock className="w-4 h-4" />
-              검토 대기 중
-            </div>
+          )}
+        </div>
+      );
+    }
 
-            {/* Show preliminary results */}
-            {currentRecord.parsed_data && (
-              <div className="mt-8 text-left bg-card rounded-2xl p-6 border border-border">
-                <h3 className="font-semibold mb-4">AI 분석 결과 (코치 검토 전)</h3>
-                <p className="text-muted-foreground mb-4">
-                  {currentRecord.parsed_data.summary}
-                </p>
+    // completed status
+    const parsedData = currentRecord.parsed_data;
+    const healthAge = currentRecord.health_age;
+    const normalItems = parsedData?.items.filter(i => i.status === "normal") || [];
+    const warningItems = parsedData?.items.filter(i => i.status === "warning") || [];
+    const dangerItems = parsedData?.items.filter(i => i.status === "danger") || [];
+
+    return (
+      <div className="space-y-6">
+        <div className="bg-card rounded-2xl p-5 border border-border">
+          <div className="flex items-center gap-3 mb-4">
+            <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+            <span className="text-lg font-medium">검진 결과 완료</span>
+            <span className="text-sm text-muted-foreground ml-auto">
+              {currentRecord.exam_date ? format(new Date(currentRecord.exam_date), "yyyy.MM.dd", { locale: ko }) : ""}
+            </span>
+          </div>
+
+          {healthAge && (
+            <div className="text-center py-6 bg-emerald-50 rounded-2xl mb-4">
+              <p className="text-muted-foreground mb-2">건강 나이</p>
+              <p className="text-5xl font-bold text-emerald-600 mb-2">{healthAge}세</p>
+            </div>
+          )}
+
+          {parsedData?.summary && (
+            <p className="text-lg text-foreground mb-4">{parsedData.summary}</p>
+          )}
+
+          <div className="space-y-4">
+            {normalItems.length > 0 && (
+              <div>
+                <h4 className="font-medium text-emerald-700 mb-2">정상 ({normalItems.length}개)</h4>
                 <div className="space-y-2">
-                  {currentRecord.parsed_data.items.slice(0, 3).map((item, idx) => (
+                  {normalItems.map((item, idx) => (
+                    <HealthItemCard key={idx} item={item} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {warningItems.length > 0 && (
+              <div>
+                <h4 className="font-medium text-amber-700 mb-2">주의 ({warningItems.length}개)</h4>
+                <div className="space-y-2">
+                  {warningItems.map((item, idx) => (
+                    <HealthItemCard key={idx} item={item} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {dangerItems.length > 0 && (
+              <div>
+                <h4 className="font-medium text-red-700 mb-2">관리 필요 ({dangerItems.length}개)</h4>
+                <div className="space-y-2">
+                  {dangerItems.map((item, idx) => (
                     <HealthItemCard key={idx} item={item} />
                   ))}
                 </div>
               </div>
             )}
           </div>
-        );
 
-      case "completed":
-        const parsedData = currentRecord.parsed_data;
-        const healthAge = currentRecord.health_age;
-        
-        // Group items by status
-        const normalItems = parsedData?.items.filter(i => i.status === "normal") || [];
-        const warningItems = parsedData?.items.filter(i => i.status === "warning") || [];
-        const dangerItems = parsedData?.items.filter(i => i.status === "danger") || [];
-
-        return (
-          <div className="space-y-6">
-            {/* 결과 카드 */}
-            <div className="bg-card rounded-3xl p-6 border border-border">
-              <div className="flex items-center gap-3 mb-6">
-                <CheckCircle2 className="w-6 h-6 text-emerald-600" />
-                <span className="text-lg font-medium">검진 결과 완료</span>
-                <span className="text-sm text-muted-foreground ml-auto">
-                  {format(new Date(currentRecord.created_at), "yyyy.MM.dd", { locale: ko })}
-                </span>
-              </div>
-
-              {/* 건강 나이 */}
-              {healthAge && (
-                <div className="text-center py-6 bg-emerald-50 rounded-2xl mb-6">
-                  <p className="text-muted-foreground mb-2">건강 나이</p>
-                  <p className="text-5xl font-bold text-emerald-600 mb-2">{healthAge}세</p>
-                </div>
-              )}
-
-              {/* 요약 */}
-              {parsedData?.summary && (
-                <p className="text-lg text-foreground mb-6">{parsedData.summary}</p>
-              )}
-
-              {/* 상태별 그룹 */}
-              <div className="space-y-4">
-                {normalItems.length > 0 && (
-                  <div>
-                    <h4 className="font-medium text-emerald-700 mb-2 flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                      정상 ({normalItems.length}개)
-                    </h4>
-                    <div className="space-y-2">
-                      {normalItems.map((item, idx) => (
-                        <HealthItemCard key={idx} item={item} />
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {warningItems.length > 0 && (
-                  <div>
-                    <h4 className="font-medium text-amber-700 mb-2 flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-amber-500" />
-                      주의 ({warningItems.length}개)
-                    </h4>
-                    <div className="space-y-2">
-                      {warningItems.map((item, idx) => (
-                        <HealthItemCard key={idx} item={item} />
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {dangerItems.length > 0 && (
-                  <div>
-                    <h4 className="font-medium text-red-700 mb-2 flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-red-500" />
-                      관리 필요 ({dangerItems.length}개)
-                    </h4>
-                    <div className="space-y-2">
-                      {dangerItems.map((item, idx) => (
-                        <HealthItemCard key={idx} item={item} />
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* 권장 사항 */}
-              {parsedData?.recommendations && parsedData.recommendations.length > 0 && (
-                <div className="mt-6 p-4 rounded-xl bg-blue-50">
-                  <h4 className="font-medium text-blue-700 mb-2">💡 권장 사항</h4>
-                  <ul className="space-y-1 text-blue-800">
-                    {parsedData.recommendations.map((rec, idx) => (
-                      <li key={idx}>• {rec}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {/* 코치 코멘트 */}
-              {currentRecord.coach_comment && (
-                <div className="mt-6 p-4 rounded-xl bg-muted">
-                  <p className="text-sm text-muted-foreground mb-1">💬 코치 코멘트</p>
-                  <p className="text-foreground">{currentRecord.coach_comment}</p>
-                </div>
-              )}
+          {currentRecord.coach_comment && (
+            <div className="mt-4 p-4 rounded-xl bg-muted">
+              <p className="text-sm text-muted-foreground mb-1">💬 코치 코멘트</p>
+              <p className="text-foreground">{currentRecord.coach_comment}</p>
             </div>
+          )}
+        </div>
 
-            {/* 가족에게 공유 */}
-            <Button 
-              size="lg" 
-              className="w-full h-14"
-              onClick={() => setShowShareDialog(true)}
-            >
-              <Share2 className="w-5 h-5 mr-2" />
-              가족에게 공유하기
-            </Button>
+        <Button size="lg" className="w-full h-12" onClick={() => setShowShareDialog(true)}>
+          <Share2 className="w-5 h-5 mr-2" />
+          가족에게 공유하기
+        </Button>
 
-            {/* 새 검진 업로드 */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={handleFileSelect}
-              className="hidden"
-            />
-            <Button 
-              variant="outline" 
-              size="lg" 
-              className="w-full h-14"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isUploading}
-            >
-              <Upload className="w-5 h-5 mr-2" />
-              새 검진 결과 업로드
-            </Button>
-          </div>
-        );
-    }
+        <Button variant="outline" size="lg" className="w-full h-12" onClick={openUploadDialog} disabled={isUploading}>
+          <Upload className="w-5 h-5 mr-2" />
+          새 검진 결과 업로드
+        </Button>
+      </div>
+    );
   };
 
   return (
@@ -497,34 +601,189 @@ export default function Medical() {
       <div>
         <h1 className="text-3xl font-bold text-foreground mb-2">건강양갱</h1>
         <p className="text-lg text-muted-foreground">
-          건강검진 결과를 쉽게 이해해보세요
+          건강검진과 인바디 결과를 한 눈에
         </p>
       </div>
 
-      {/* 메인 콘텐츠 */}
-      <div className="bg-card rounded-3xl border border-border p-6">
-        {renderContent()}
-      </div>
+      {/* 탭 */}
+      <Tabs defaultValue="checkup" className="w-full">
+        <TabsList className="w-full grid grid-cols-2">
+          <TabsTrigger value="checkup">건강검진</TabsTrigger>
+          <TabsTrigger value="inbody">인바디</TabsTrigger>
+        </TabsList>
 
-      {/* 과거 기록 */}
-      {records.length > 1 && (
-        <div className="bg-card rounded-3xl border border-border p-6">
-          <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
-            <History className="w-5 h-5" />
-            이전 검진 기록
-          </h3>
-          <div className="space-y-2">
-            {records.slice(0, 5).map((record) => (
-              <RecordCard
-                key={record.id}
-                record={record}
-                onClick={() => setCurrentRecord(record)}
-                isActive={currentRecord?.id === record.id}
-              />
-            ))}
+        <TabsContent value="checkup" className="mt-4 space-y-4">
+          {/* 메인 콘텐츠 */}
+          <div className="bg-card rounded-3xl border border-border p-6">
+            {renderHealthCheckupContent()}
           </div>
-        </div>
-      )}
+
+          {/* 기록 목록 (여러 개) */}
+          {records.length > 0 && (
+            <div className="bg-card rounded-3xl border border-border p-6">
+              <h3 className="font-semibold text-lg mb-4">검진 기록 목록</h3>
+              <div className="space-y-2">
+                {records.map((record) => (
+                  <div
+                    key={record.id}
+                    className={cn(
+                      "p-4 rounded-xl border transition-colors flex items-center justify-between",
+                      currentRecord?.id === record.id
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:border-primary/50 cursor-pointer"
+                    )}
+                    onClick={() => setCurrentRecord(record)}
+                  >
+                    <div>
+                      <p className="font-medium">
+                        {record.exam_date 
+                          ? format(new Date(record.exam_date), "yyyy년 M월 d일", { locale: ko })
+                          : format(new Date(record.created_at), "yyyy년 M월 d일", { locale: ko })
+                        }
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {record.status === "completed" ? "분석 완료" : 
+                         record.status === "analyzing" ? "분석 중" :
+                         record.status === "pending_review" ? "검토 대기" : "업로드 중"}
+                      </p>
+                    </div>
+                    <div className="flex gap-1">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={(e) => { e.stopPropagation(); openEditDate(record); }}
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}>
+                            <Trash2 className="w-4 h-4 text-destructive" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>삭제하시겠습니까?</AlertDialogTitle>
+                            <AlertDialogDescription>이 기록과 관련된 이미지도 함께 삭제됩니다.</AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>취소</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDeleteRecord(record.id)}>삭제</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="inbody" className="mt-4">
+          <div className="bg-card rounded-3xl border border-border p-6">
+            <InBodySection />
+          </div>
+        </TabsContent>
+      </Tabs>
+
+      {/* 업로드 다이얼로그 (검진일 선택) */}
+      <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>검진 결과 업로드</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">검진일 선택</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full justify-start text-left font-normal">
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {format(examDate, "yyyy년 M월 d일", { locale: ko })}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={examDate}
+                    onSelect={(date) => date && setExamDate(date)}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handleFileSelect}
+              className="hidden"
+            />
+
+            <div className="flex flex-col gap-3">
+              <Button 
+                size="lg" 
+                className="w-full h-12"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading}
+              >
+                {isUploading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Camera className="w-5 h-5 mr-2" />}
+                카메라로 촬영
+              </Button>
+              <Button 
+                size="lg" 
+                variant="outline"
+                className="w-full h-12"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading}
+              >
+                <Upload className="w-5 h-5 mr-2" />
+                갤러리에서 선택
+              </Button>
+            </div>
+
+            <p className="text-sm text-muted-foreground text-center">
+              JPG, PNG 파일 (최대 10MB)
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* 검진일 수정 다이얼로그 */}
+      <Dialog open={!!editingRecordId} onOpenChange={(open) => !open && setEditingRecordId(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>검진일 수정</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-full justify-start text-left font-normal">
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {editExamDate ? format(editExamDate, "yyyy년 M월 d일", { locale: ko }) : "날짜 선택"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={editExamDate}
+                  onSelect={setEditExamDate}
+                  initialFocus
+                  className={cn("p-3 pointer-events-auto")}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingRecordId(null)}>취소</Button>
+            <Button onClick={saveEditDate}>저장</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* 공유 다이얼로그 */}
       <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
@@ -552,11 +811,6 @@ export default function Medical() {
               텍스트 복사하기
             </Button>
           </div>
-          <p className="text-sm text-muted-foreground mt-4 text-center">
-            건강나이와 상태 요약만 공유됩니다.
-            <br />
-            세부 수치는 공유되지 않아요.
-          </p>
         </DialogContent>
       </Dialog>
     </div>
