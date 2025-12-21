@@ -285,8 +285,8 @@ export default function Dashboard() {
           ))}
         </div>
 
-        {/* Action Buttons - 모바일에서 세로 스택 */}
-        <div className="flex flex-col sm:flex-row gap-2 pt-2">
+        {/* Action Buttons */}
+        <div className="flex gap-2 pt-2">
           <Button 
             variant="outline" 
             size="sm" 
@@ -295,15 +295,6 @@ export default function Dashboard() {
           >
             <RefreshCw className="w-4 h-4 mr-2 shrink-0" />
             <span>다른 제안 받기</span>
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="flex-1 min-h-[40px] whitespace-normal text-sm"
-            onClick={() => setShowAIDialog(true)}
-          >
-            <Sparkles className="w-4 h-4 mr-2 shrink-0" />
-            <span>AI에게 물어보기</span>
           </Button>
         </div>
 

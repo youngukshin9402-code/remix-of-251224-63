@@ -39,7 +39,7 @@ export function YanggaengSection() {
         {/* 3개의 양갱 카드 */}
         <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
           <YanggaengCard
-            title="의료양갱"
+            title="건강양갱"
             description="건강검진 결과를 사진으로 찍으면 AI가 쉬운 말로 설명해드려요."
             icon={Stethoscope}
             color="health"
@@ -48,7 +48,6 @@ export function YanggaengSection() {
               "건강검진 결과 자동 분석",
               "쉬운 용어로 설명",
               "건강 나이 측정",
-              "가족에게 공유하기",
             ]}
             delay={0}
           />
@@ -61,9 +60,7 @@ export function YanggaengSection() {
             to="/nutrition"
             features={[
               "음식 사진 분석",
-              "나트륨/당 체크",
               "맞춤 식단 추천",
-              "영양 점수 확인",
             ]}
             delay={100}
           />
@@ -74,7 +71,7 @@ export function YanggaengSection() {
             icon={Dumbbell}
             color="exercise"
             to="/exercise"
-            features={["일일 미션 3개", "원터치 완료", "포인트 적립", "주간 리포트"]}
+            features={["포인트 적립", "주간 리포트"]}
             delay={200}
           />
         </div>

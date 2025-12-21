@@ -3,7 +3,6 @@ import {
   Eye,
   MessageCircle,
   Gift,
-  Heart,
   Clock,
 } from "lucide-react";
 
@@ -28,12 +27,6 @@ export function BenefitsSection() {
         "건강한 활동을 할 때마다 포인트가 쌓여요. 쿠폰이나 상품으로 교환 가능해요.",
     },
     {
-      icon: Heart,
-      title: "가족과 함께",
-      description:
-        "자녀분께 건강 상태를 쉽게 공유하고, 보호자 모드로 함께 관리할 수 있어요.",
-    },
-    {
       icon: Clock,
       title: "매일 조금씩",
       description:
@@ -47,7 +40,7 @@ export function BenefitsSection() {
         {/* 섹션 헤더 */}
         <div className="text-center mb-16">
           <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-6">
-            어르신을 위해
+            당신을 위해
             <br />
             <span className="text-primary">특별히</span> 만들었어요
           </h2>
