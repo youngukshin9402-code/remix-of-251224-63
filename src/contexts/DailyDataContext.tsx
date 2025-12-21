@@ -202,28 +202,44 @@ export function DailyDataProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      // Get points from profile
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('current_points')
-        .eq('id', user.id)
-        .single();
-
-      if (profileError) throw profileError;
-      setCurrentPoints(profileData?.current_points || 0);
-
-      // Check if today's points already awarded
+      // 포인트 내역에서 직접 계산 (적립/사용 내역 기반 실시간 반영)
       const { data: historyData, error: historyError } = await supabase
         .from('point_history')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('reason', '일일 미션 완료')
-        .gte('created_at', `${today}T00:00:00`)
-        .lte('created_at', `${today}T23:59:59`);
+        .select('amount, reason, created_at')
+        .eq('user_id', user.id);
 
-      if (!historyError) {
-        setHasTodayPointsAwarded((historyData || []).length > 0);
-      }
+      if (historyError) throw historyError;
+
+      // 미션 관련 reason 중복 제거 (하루 1회만 카운트)
+      const DAILY_MISSION_REASONS = ['일일 미션 완료', '오늘의 미션 3개 완료'];
+      const seenDates = new Set<string>();
+      let calculatedPoints = 0;
+
+      // 시간순 정렬 (오래된 것 먼저)
+      const sortedHistory = [...(historyData || [])].sort((a, b) => 
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      );
+
+      sortedHistory.forEach(item => {
+        const dateStr = item.created_at.split('T')[0];
+        
+        if (DAILY_MISSION_REASONS.includes(item.reason)) {
+          if (!seenDates.has(dateStr)) {
+            seenDates.add(dateStr);
+            calculatedPoints += item.amount;
+          }
+        } else {
+          calculatedPoints += item.amount;
+        }
+      });
+
+      setCurrentPoints(calculatedPoints);
+
+      // Check if today's points already awarded
+      const todayAwarded = sortedHistory.some(
+        h => h.reason === '일일 미션 완료' && h.created_at.startsWith(today)
+      );
+      setHasTodayPointsAwarded(todayAwarded);
     } catch (error) {
       console.error('Error fetching points:', error);
     } finally {
