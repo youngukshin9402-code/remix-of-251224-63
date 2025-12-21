@@ -213,7 +213,7 @@ export default function Auth() {
           }`}
         >
           <User className="w-10 h-10 mx-auto mb-3 text-primary" />
-          <p className="text-lg font-semibold">직접 관리</p>
+          <p className="text-base font-semibold whitespace-nowrap">직접관리</p>
           <p className="text-sm text-muted-foreground mt-1">
             내 건강을 직접 관리할게요
           </p>

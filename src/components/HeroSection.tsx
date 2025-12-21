@@ -24,21 +24,23 @@ export function HeroSection() {
           </div>
 
           {/* 메인 타이틀 */}
-          <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold text-foreground mb-8 leading-tight animate-slide-up">
-            건강도{" "}
-            <span className="text-primary relative">
-              양갱
-              <svg className="absolute -bottom-2 left-0 w-full" viewBox="0 0 200 12" fill="none">
-                <path
-                  d="M2 8C50 2 150 2 198 8"
-                  stroke="hsl(var(--primary))"
-                  strokeWidth="4"
-                  strokeLinecap="round"
-                  className="opacity-30"
-                />
-              </svg>
+          <h1 className="text-4xl md:text-5xl lg:text-7xl font-bold text-foreground mb-8 leading-tight animate-slide-up">
+            <span className="whitespace-nowrap">
+              건강도{" "}
+              <span className="text-primary relative">
+                양갱
+                <svg className="absolute -bottom-2 left-0 w-full" viewBox="0 0 200 12" fill="none">
+                  <path
+                    d="M2 8C50 2 150 2 198 8"
+                    stroke="hsl(var(--primary))"
+                    strokeWidth="4"
+                    strokeLinecap="round"
+                    className="opacity-30"
+                  />
+                </svg>
+              </span>
+              처럼
             </span>
-            처럼
             <br />
             달콤하게
           </h1>

@@ -414,11 +414,7 @@ export default function Water() {
                 </div>
               </div>
             </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              알림이 꺼져 있습니다. 설정에서 켜주세요.
-            </p>
-          )}
+          ) : null}
         </div>
 
         {/* Today's Log with Delete */}

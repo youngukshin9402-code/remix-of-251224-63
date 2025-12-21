@@ -4,9 +4,7 @@ import { Link } from "react-router-dom";
 
 export function CTASection() {
   const benefits = [
-    "건강검진 결과 무료 분석 1회",
     "일일 미션으로 포인트 적립",
-    "가족 공유 기능",
     "전문 코치 상담 체험",
   ];
 
@@ -15,10 +13,10 @@ export function CTASection() {
       <div className="container mx-auto px-6">
         <div className="max-w-4xl mx-auto text-center">
           {/* 메인 메시지 */}
-          <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-6">
-            지금 바로
+          <h2 className="text-3xl md:text-5xl font-bold text-foreground mb-6">
+            <span className="whitespace-nowrap">지금 바로 <span className="text-primary">영양갱</span>을</span>
             <br />
-            <span className="text-primary">영양갱</span>을 시작하세요
+            시작하세요
           </h2>
 
           <p className="text-xl text-muted-foreground mb-10 max-w-2xl mx-auto">
@@ -50,10 +48,6 @@ export function CTASection() {
             </Button>
           </div>
 
-          {/* 부가 정보 */}
-          <p className="mt-8 text-base text-muted-foreground">
-            가입비 무료 • 언제든지 해지 가능
-          </p>
         </div>
       </div>
     </section>
