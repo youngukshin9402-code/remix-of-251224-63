@@ -27,7 +27,7 @@ export default function AdminUsers() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [showAssignDialog, setShowAssignDialog] = useState(false);
-  const [selectedCoach, setSelectedCoach] = useState<string>("");
+  const [selectedCoach, setSelectedCoach] = useState<string>("__none__");
 
   const filteredUsers = users.filter(
     (u) =>
@@ -37,10 +37,10 @@ export default function AdminUsers() {
 
   const handleAssignCoach = async () => {
     if (!selectedUser) return;
-    await assignCoach(selectedUser.id, selectedCoach || null);
+    await assignCoach(selectedUser.id, selectedCoach === "__none__" ? null : selectedCoach || null);
     setShowAssignDialog(false);
     setSelectedUser(null);
-    setSelectedCoach("");
+    setSelectedCoach("__none__");
   };
 
   if (loading) {
@@ -134,7 +134,7 @@ export default function AdminUsers() {
                       size="sm"
                       onClick={() => {
                         setSelectedUser(user);
-                        setSelectedCoach(user.assigned_coach_id || "");
+                        setSelectedCoach(user.assigned_coach_id || "__none__");
                         setShowAssignDialog(true);
                       }}
                     >
@@ -163,7 +163,7 @@ export default function AdminUsers() {
                 <SelectValue placeholder="코치 선택" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">배정 없음</SelectItem>
+                <SelectItem value="__none__">배정 없음</SelectItem>
                 {coaches.map((coach) => (
                   <SelectItem key={coach.id} value={coach.id}>
                     {coach.nickname}
