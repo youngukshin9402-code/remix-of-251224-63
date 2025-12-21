@@ -20,12 +20,12 @@ import {
   Keyboard,
   ImageIcon,
   TrendingUp,
-  Calculator,
+  Brain,
 } from "lucide-react";
 import { useHealthRecords, HealthRecord, HealthRecordItem } from "@/hooks/useHealthRecords";
 import { useInBodyRecords } from "@/hooks/useServerSync";
 import { supabase } from "@/integrations/supabase/client";
-import { HealthAgeCalculator } from "@/components/HealthAgeCalculator";
+
 import { format } from "date-fns";
 import { ko } from "date-fns/locale";
 import { toast } from "sonner";
@@ -134,6 +134,14 @@ function InBodySection() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
+  // AI 건강 나이/신체 점수 분석 상태
+  const [healthAgeResult, setHealthAgeResult] = useState<{
+    healthAge: number;
+    bodyScore: number;
+    analysis: string;
+  } | null>(null);
+  const [isAnalyzingHealth, setIsAnalyzingHealth] = useState(false);
+
   // 트렌드 차트 데이터
   const chartData = useMemo(() => {
     if (records.length < 2) return [];
@@ -158,6 +166,45 @@ function InBodySection() {
     if (error) throw new Error(error.message || 'AI 분석 실패');
     if (!data.success) throw new Error(data.error || 'AI 분석 실패');
     return data.data;
+  };
+
+  // AI 건강 나이/신체 점수 분석 함수
+  const analyzeHealthAge = async (record: typeof records[0]) => {
+    if (isAnalyzingHealth) return;
+    setIsAnalyzingHealth(true);
+    setHealthAgeResult(null);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('analyze-inbody', {
+        body: { 
+          analyzeHealthAge: true,
+          inbodyData: {
+            weight: Number(record.weight),
+            skeletal_muscle: record.skeletal_muscle ? Number(record.skeletal_muscle) : null,
+            body_fat_percent: record.body_fat_percent ? Number(record.body_fat_percent) : null,
+            body_fat: record.body_fat ? Number(record.body_fat) : null,
+            bmr: record.bmr,
+            visceral_fat: record.visceral_fat,
+            date: record.date,
+          }
+        }
+      });
+
+      if (error) throw new Error(error.message || 'AI 분석 실패');
+      if (!data.success) throw new Error(data.error || 'AI 분석 실패');
+
+      setHealthAgeResult({
+        healthAge: data.healthAge,
+        bodyScore: data.bodyScore,
+        analysis: data.analysis,
+      });
+      toast.success("건강 나이 분석 완료!");
+    } catch (error) {
+      console.error('Health age analysis error:', error);
+      toast.error("분석 실패 - 잠시 후 다시 시도해주세요");
+    } finally {
+      setIsAnalyzingHealth(false);
+    }
   };
 
   // 사진 선택 처리
@@ -377,6 +424,45 @@ function InBodySection() {
               <span className="text-xl font-bold">{latestRecord.bmr ? `${latestRecord.bmr}kcal` : '-'}</span>
             </div>
           </div>
+
+          {/* AI 건강 나이 분석 버튼 */}
+          <Button
+            variant="outline"
+            className="w-full h-12 border-primary/30 bg-primary/5"
+            onClick={() => analyzeHealthAge(latestRecord)}
+            disabled={isAnalyzingHealth}
+          >
+            {isAnalyzingHealth ? (
+              <>
+                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                AI 분석 중...
+              </>
+            ) : (
+              <>
+                <Brain className="w-5 h-5 mr-2 text-primary" />
+                AI 건강 나이 분석
+              </>
+            )}
+          </Button>
+
+          {/* AI 분석 결과 */}
+          {healthAgeResult && (
+            <div className="bg-gradient-to-br from-primary/10 to-accent/10 rounded-2xl p-5 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="text-center">
+                  <p className="text-sm text-muted-foreground mb-1">건강 나이</p>
+                  <p className="text-4xl font-bold text-primary">{healthAgeResult.healthAge}세</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-sm text-muted-foreground mb-1">신체 점수</p>
+                  <p className="text-4xl font-bold text-accent">{healthAgeResult.bodyScore}점</p>
+                </div>
+              </div>
+              <div className="bg-background/50 rounded-xl p-4">
+                <p className="text-sm text-foreground leading-relaxed">{healthAgeResult.analysis}</p>
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         <div className="bg-card rounded-2xl border border-border p-8 text-center">
@@ -606,7 +692,7 @@ export default function Medical() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
-  const [showHealthAgeCalculator, setShowHealthAgeCalculator] = useState(false);
+  
   const [examDate, setExamDate] = useState<Date>(new Date());
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
   const [editExamDate, setEditExamDate] = useState<Date | undefined>(undefined);
@@ -789,15 +875,6 @@ export default function Medical() {
             <Button size="lg" className="h-14 px-8 text-lg" onClick={openUploadDialog}>
               <Upload className="w-5 h-5 mr-2" />
               검진 결과 업로드
-            </Button>
-            <Button 
-              size="lg" 
-              variant="outline" 
-              className="h-14 px-8 text-lg"
-              onClick={() => setShowHealthAgeCalculator(true)}
-            >
-              <Calculator className="w-5 h-5 mr-2" />
-              건강 나이 계산하기
             </Button>
           </div>
         </div>
@@ -1184,11 +1261,6 @@ export default function Medical() {
         </DialogContent>
       </Dialog>
 
-      {/* 건강 나이 계산기 */}
-      <HealthAgeCalculator 
-        open={showHealthAgeCalculator} 
-        onOpenChange={setShowHealthAgeCalculator}
-      />
     </div>
   );
 }
