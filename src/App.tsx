@@ -74,14 +74,16 @@ function AuthenticatedRedirect() {
   }
 
   // 사용자 유형에 따라 적절한 대시보드로 리다이렉트
-  switch (profile.user_type) {
-    case "admin":
-      return <Navigate to="/admin" replace />;
-    case "coach":
-      return <Navigate to="/coach" replace />;
-    default:
-      return <Navigate to="/dashboard" replace />;
+  // admin은 user_roles 테이블에서 확인해야 하므로 isAdmin 사용
+  const { isAdmin, isCoach } = useAuth();
+  
+  if (isAdmin) {
+    return <Navigate to="/admin/dashboard" replace />;
   }
+  if (isCoach || profile.user_type === "coach") {
+    return <Navigate to="/coach" replace />;
+  }
+  return <Navigate to="/dashboard" replace />;
 }
 
 function AppRoutes() {
@@ -181,6 +183,14 @@ function AppRoutes() {
       {/* 관리자 페이지 */}
       <Route
         path="/admin"
+        element={
+          <ProtectedRoute allowedTypes={["admin"]}>
+            <AdminDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/dashboard"
         element={
           <ProtectedRoute allowedTypes={["admin"]}>
             <AdminDashboard />
