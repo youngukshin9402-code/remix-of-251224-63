@@ -136,11 +136,14 @@ function InBodySection() {
 
   // AI 건강 나이/신체 점수 분석 상태
   const [healthAgeResult, setHealthAgeResult] = useState<{
+    actualAge: number;
     healthAge: number;
     bodyScore: number;
     analysis: string;
   } | null>(null);
   const [isAnalyzingHealth, setIsAnalyzingHealth] = useState(false);
+  const [actualAgeInput, setActualAgeInput] = useState<number | null>(null);
+  const [showAgeInputDialog, setShowAgeInputDialog] = useState(false);
 
   // 트렌드 차트 데이터
   const chartData = useMemo(() => {
@@ -168,16 +171,22 @@ function InBodySection() {
     return data.data;
   };
 
-  // AI 건강 나이/신체 점수 분석 함수
-  const analyzeHealthAge = async (record: typeof records[0]) => {
+  // AI 건강 나이/신체 점수 분석 함수 - 실제 나이 입력 후 분석
+  const startHealthAgeAnalysis = (record: typeof records[0]) => {
+    setShowAgeInputDialog(true);
+  };
+
+  const analyzeHealthAge = async (record: typeof records[0], actualAge: number) => {
     if (isAnalyzingHealth) return;
     setIsAnalyzingHealth(true);
     setHealthAgeResult(null);
+    setShowAgeInputDialog(false);
 
     try {
       const { data, error } = await supabase.functions.invoke('analyze-inbody', {
         body: { 
           analyzeHealthAge: true,
+          actualAge,
           inbodyData: {
             weight: Number(record.weight),
             skeletal_muscle: record.skeletal_muscle ? Number(record.skeletal_muscle) : null,
@@ -194,6 +203,7 @@ function InBodySection() {
       if (!data.success) throw new Error(data.error || 'AI 분석 실패');
 
       setHealthAgeResult({
+        actualAge,
         healthAge: data.healthAge,
         bodyScore: data.bodyScore,
         analysis: data.analysis,
@@ -429,7 +439,7 @@ function InBodySection() {
           <Button
             variant="outline"
             className="w-full h-12 border-primary/30 bg-primary/5"
-            onClick={() => analyzeHealthAge(latestRecord)}
+            onClick={() => startHealthAgeAnalysis(latestRecord)}
             disabled={isAnalyzingHealth}
           >
             {isAnalyzingHealth ? (
@@ -445,17 +455,66 @@ function InBodySection() {
             )}
           </Button>
 
+          {/* 실제 나이 입력 다이얼로그 */}
+          <Dialog open={showAgeInputDialog} onOpenChange={setShowAgeInputDialog}>
+            <DialogContent className="max-w-xs">
+              <DialogHeader>
+                <DialogTitle>실제 나이 입력</DialogTitle>
+              </DialogHeader>
+              <div className="py-4">
+                <label className="text-sm font-medium mb-2 block">나이 (만 나이)</label>
+                <Input
+                  type="number"
+                  placeholder="예: 35"
+                  value={actualAgeInput ?? ''}
+                  onChange={(e) => setActualAgeInput(e.target.value ? parseInt(e.target.value) : null)}
+                  className="text-center text-lg"
+                  min={1}
+                  max={120}
+                />
+              </div>
+              <DialogFooter>
+                <Button
+                  onClick={() => {
+                    if (actualAgeInput && actualAgeInput > 0 && latestRecord) {
+                      analyzeHealthAge(latestRecord, actualAgeInput);
+                    } else {
+                      toast.error("나이를 입력해주세요");
+                    }
+                  }}
+                  className="w-full"
+                  disabled={!actualAgeInput || actualAgeInput <= 0}
+                >
+                  분석 시작
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
           {/* AI 분석 결과 */}
           {healthAgeResult && (
             <div className="bg-gradient-to-br from-primary/10 to-accent/10 rounded-2xl p-5 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-3">
                 <div className="text-center">
-                  <p className="text-sm text-muted-foreground mb-1">건강 나이</p>
-                  <p className="text-4xl font-bold text-primary">{healthAgeResult.healthAge}세</p>
+                  <p className="text-xs text-muted-foreground mb-1">실제 나이</p>
+                  <p className="text-2xl font-bold text-foreground">{healthAgeResult.actualAge}세</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-sm text-muted-foreground mb-1">신체 점수</p>
-                  <p className="text-4xl font-bold text-accent">{healthAgeResult.bodyScore}점</p>
+                  <p className="text-xs text-muted-foreground mb-1">건강 나이</p>
+                  <p className={`text-2xl font-bold ${healthAgeResult.healthAge <= healthAgeResult.actualAge ? 'text-health-green' : 'text-destructive'}`}>
+                    {healthAgeResult.healthAge}세
+                  </p>
+                  <p className={`text-xs ${healthAgeResult.healthAge <= healthAgeResult.actualAge ? 'text-health-green' : 'text-destructive'}`}>
+                    {healthAgeResult.healthAge < healthAgeResult.actualAge 
+                      ? `${healthAgeResult.actualAge - healthAgeResult.healthAge}세 젊음`
+                      : healthAgeResult.healthAge > healthAgeResult.actualAge
+                      ? `${healthAgeResult.healthAge - healthAgeResult.actualAge}세 더 높음`
+                      : '실제 나이와 동일'}
+                  </p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xs text-muted-foreground mb-1">신체 점수</p>
+                  <p className="text-2xl font-bold text-accent">{healthAgeResult.bodyScore}점</p>
                 </div>
               </div>
               <div className="bg-background/50 rounded-xl p-4">

@@ -6,15 +6,18 @@ const corsHeaders = {
 };
 
 // 건강 나이 분석 함수
-async function analyzeHealthAgeFromData(inbodyData: {
-  weight: number;
-  skeletal_muscle: number | null;
-  body_fat_percent: number | null;
-  body_fat: number | null;
-  bmr: number | null;
-  visceral_fat: number | null;
-  date: string;
-}): Promise<Response> {
+async function analyzeHealthAgeFromData(
+  inbodyData: {
+    weight: number;
+    skeletal_muscle: number | null;
+    body_fat_percent: number | null;
+    body_fat: number | null;
+    bmr: number | null;
+    visceral_fat: number | null;
+    date: string;
+  },
+  actualAge: number
+): Promise<Response> {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   if (!LOVABLE_API_KEY) {
     return new Response(
@@ -23,9 +26,11 @@ async function analyzeHealthAgeFromData(inbodyData: {
     );
   }
 
-  console.log("Analyzing health age from InBody data:", inbodyData);
+  console.log("Analyzing health age from InBody data:", inbodyData, "Actual age:", actualAge);
 
-  const prompt = `당신은 건강 전문가입니다. 다음 인바디(체성분) 데이터를 기반으로 사용자의 건강 나이와 신체 점수를 평가해주세요.
+  const prompt = `당신은 건강 전문가입니다. 다음 인바디(체성분) 데이터와 실제 나이를 기반으로 사용자의 건강 나이와 신체 점수를 평가해주세요.
+
+실제 나이: ${actualAge}세
 
 인바디 데이터:
 - 체중: ${inbodyData.weight}kg
@@ -39,13 +44,13 @@ async function analyzeHealthAgeFromData(inbodyData: {
 {
   "healthAge": 추정 건강 나이(숫자),
   "bodyScore": 신체 점수(1-100점 사이 숫자),
-  "analysis": "간단한 분석 및 조언 (2-3문장)"
+  "analysis": "실제 나이(${actualAge}세)와 비교한 건강 상태 분석 및 조언 (2-3문장, 건강 나이가 실제 나이보다 낮으면 좋은 것이고, 높으면 개선이 필요함을 언급)"
 }
 
-건강 나이 계산 기준:
-- 체지방률이 낮고 골격근량이 높으면 건강 나이가 낮아짐
-- 내장지방 레벨이 높으면 건강 나이가 높아짐
-- 기초대사량이 높으면 신체 점수가 높아짐
+건강 나이 계산 기준 (실제 나이 ${actualAge}세 기준):
+- 체지방률이 낮고 골격근량이 높으면 건강 나이가 실제 나이보다 낮아짐
+- 내장지방 레벨이 높으면 건강 나이가 실제 나이보다 높아짐
+- 기초대사량이 높으면 건강 나이가 낮아지고 신체 점수가 높아짐
 
 신체 점수 기준:
 - 80-100점: 매우 우수
@@ -128,11 +133,11 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { imageBase64, analyzeHealthAge, inbodyData } = body;
+    const { imageBase64, analyzeHealthAge, inbodyData, actualAge } = body;
 
     // 건강 나이 분석 모드
-    if (analyzeHealthAge && inbodyData) {
-      return await analyzeHealthAgeFromData(inbodyData);
+    if (analyzeHealthAge && inbodyData && actualAge) {
+      return await analyzeHealthAgeFromData(inbodyData, actualAge);
     }
 
     if (!imageBase64) {
