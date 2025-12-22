@@ -3,11 +3,13 @@
  * - 단일 소스: useMealRecordsQuery + useNutritionSettings
  * - 날짜: KST 기준 YYYY-MM-DD 문자열
  * - URL query로 날짜 유지 (?date=YYYY-MM-DD)
+ * - AI 피드백 통합
+ * - 낙관적 업데이트
  */
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
-import { format, isSameDay, addDays, subDays } from "date-fns";
+import { format, addDays, subDays } from "date-fns";
 import { ko } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -19,22 +21,20 @@ import {
   CalendarIcon,
   Loader2,
   Sparkles,
-  MessageCircle,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMealRecordsQuery } from "@/hooks/useMealRecordsQuery";
 import { useNutritionSettings } from "@/hooks/useNutritionSettings";
 import { useDailyData } from "@/contexts/DailyDataContext";
 import { MealType, MealFood, MealRecordServer } from "@/hooks/useServerSync";
-import { getKSTDateString, formatDateToKSTString, parseKSTDateString, isToday } from "@/lib/nutritionUtils";
+import { getKSTDateString, formatDateToKSTString, parseKSTDateString, isToday, NutritionGoals } from "@/lib/nutritionUtils";
 
 // Components
 import { NutritionSummaryCard } from "@/components/nutrition/NutritionSummaryCard";
 import { MealCardsGrid } from "@/components/nutrition/MealCardsGrid";
 import { AddFoodSheet } from "@/components/nutrition/AddFoodSheet";
 import { FoodAnalysisSheet } from "@/components/nutrition/FoodAnalysisSheet";
-import { MealTimeline } from "@/components/nutrition/MealTimeline";
+import { AIDietFeedbackSheet } from "@/components/nutrition/AIDietFeedbackSheet";
 
 interface AnalyzedFood {
   name: string;
@@ -76,7 +76,7 @@ export default function Nutrition() {
   }, [dateStr, searchParams, setSearchParams]);
 
   // 데이터 훅
-  const { getGoals, hasSettings, loading: settingsLoading } = useNutritionSettings();
+  const { getGoals, hasSettings, loading: settingsLoading, refetch: refetchSettings } = useNutritionSettings();
   const {
     records,
     loading: recordsLoading,
@@ -89,7 +89,10 @@ export default function Nutrition() {
     refetch,
   } = useMealRecordsQuery({ dateStr });
 
-  const goals = getGoals();
+  // 낙관적 업데이트를 위한 로컬 goals 상태
+  const [localGoals, setLocalGoals] = useState<NutritionGoals | null>(null);
+  const goals = localGoals || getGoals();
+  
   const loading = settingsLoading || recordsLoading;
   const isTodaySelected = isToday(dateStr);
 
@@ -97,6 +100,7 @@ export default function Nutrition() {
   const [showCalendar, setShowCalendar] = useState(false);
   const [addSheetOpen, setAddSheetOpen] = useState(false);
   const [analysisSheetOpen, setAnalysisSheetOpen] = useState(false);
+  const [feedbackSheetOpen, setFeedbackSheetOpen] = useState(false);
   const [selectedMealType, setSelectedMealType] = useState<MealType>("lunch");
   
   // AI 분석 상태
@@ -105,6 +109,18 @@ export default function Nutrition() {
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // 설정 저장 시 목표값 즉시 반영 (낙관적 업데이트)
+  const handleGoalsUpdate = useCallback((newGoals: NutritionGoals) => {
+    setLocalGoals(newGoals);
+  }, []);
+
+  // 설정 로드 후 로컬 상태 리셋
+  useEffect(() => {
+    if (!settingsLoading && hasSettings) {
+      setLocalGoals(null);
+    }
+  }, [settingsLoading, hasSettings]);
 
   // 날짜 이동
   const moveDate = (days: number) => {
@@ -214,7 +230,6 @@ export default function Nutrition() {
     setAnalyzedFoods(record.foods.map(f => ({ ...f, portion: f.portion || "1인분" })));
     setUploadedImage(record.image_url);
     setAnalysisSheetOpen(true);
-    // 기존 기록은 저장 시 삭제하지 않고 별도 처리 필요 (간소화)
   };
 
   if (loading) {
@@ -276,19 +291,23 @@ export default function Nutrition() {
       </Dialog>
 
       {/* 요약 카드 */}
-      <NutritionSummaryCard totals={totals} goals={goals} hasSettings={hasSettings} />
+      <NutritionSummaryCard 
+        totals={totals} 
+        goals={goals} 
+        hasSettings={hasSettings} 
+        onGoalsUpdate={handleGoalsUpdate}
+      />
 
-      {/* 버튼 2개 */}
-      <div className="grid grid-cols-2 gap-3">
-        <Button variant="outline" className="h-12" onClick={() => toast({ title: "준비 중", description: "추후 업데이트 예정입니다" })}>
-          <MessageCircle className="w-4 h-4 mr-2" />
-          오늘 식단은?
-        </Button>
-        <Button variant="outline" className="h-12" onClick={() => toast({ title: "준비 중", description: "추후 업데이트 예정입니다" })}>
+      {/* AI 피드백 버튼 (통합) */}
+      {isTodaySelected && (
+        <Button 
+          className="w-full h-12 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
+          onClick={() => setFeedbackSheetOpen(true)}
+        >
           <Sparkles className="w-4 h-4 mr-2" />
-          AI 코치 피드백
+          오늘의 식단 AI 코치 피드백
         </Button>
-      </div>
+      )}
 
       {/* 끼니 2x2 카드 */}
       <MealCardsGrid
@@ -296,16 +315,6 @@ export default function Nutrition() {
         caloriesByMealType={caloriesByMealType}
         onAddMeal={handleAddMeal}
       />
-
-      {/* 타임라인 */}
-      <div>
-        <h2 className="text-lg font-semibold mb-3">식사 기록</h2>
-        <MealTimeline
-          recordsByMealType={recordsByMealType}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-        />
-      </div>
 
       {/* 분석 중 오버레이 */}
       {analyzing && (
@@ -337,6 +346,15 @@ export default function Nutrition() {
         onFoodsChange={setAnalyzedFoods}
         onSave={handleSaveAnalysis}
         saving={saving}
+      />
+
+      {/* AI 피드백 시트 */}
+      <AIDietFeedbackSheet
+        open={feedbackSheetOpen}
+        onOpenChange={setFeedbackSheetOpen}
+        totals={totals}
+        goals={goals}
+        recordsByMealType={recordsByMealType}
       />
     </div>
   );

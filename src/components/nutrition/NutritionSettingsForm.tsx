@@ -2,21 +2,24 @@
  * 영양 설정 입력 폼 컴포넌트
  * - 나이/키/현재체중/목표체중 입력
  * - 설정이 없을 때 유도 카드로 표시
+ * - 낙관적 업데이트: 즉시 화면 반영, 백그라운드 저장
  */
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Pencil, Save, X, Scale, Target } from "lucide-react";
+import { Pencil, Save, X, Scale, Target, Loader2 } from "lucide-react";
 import { useNutritionSettings, NutritionSettingsInput } from "@/hooks/useNutritionSettings";
+import { calculateNutritionGoals } from "@/lib/nutritionUtils";
 import { useToast } from "@/hooks/use-toast";
 
 interface NutritionSettingsFormProps {
   compact?: boolean;
+  onGoalsUpdate?: (goals: { calorieGoal: number; carbGoalG: number; proteinGoalG: number; fatGoalG: number }) => void;
 }
 
-export function NutritionSettingsForm({ compact = false }: NutritionSettingsFormProps) {
+export function NutritionSettingsForm({ compact = false, onGoalsUpdate }: NutritionSettingsFormProps) {
   const { settings, loading, saving, save, hasSettings } = useNutritionSettings();
   const { toast } = useToast();
   
@@ -25,6 +28,7 @@ export function NutritionSettingsForm({ compact = false }: NutritionSettingsForm
   const [heightCm, setHeightCm] = useState("");
   const [currentWeight, setCurrentWeight] = useState("");
   const [goalWeight, setGoalWeight] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
   // 설정 로드 시 폼에 반영
   useEffect(() => {
@@ -49,12 +53,32 @@ export function NutritionSettingsForm({ compact = false }: NutritionSettingsForm
       return;
     }
 
+    // 1. 즉시 목표 계산 및 화면 반영 (낙관적 업데이트)
+    const calculatedGoals = calculateNutritionGoals({
+      currentWeight: input.currentWeight,
+      goalWeight: input.goalWeight,
+    });
+
+    if (onGoalsUpdate) {
+      onGoalsUpdate(calculatedGoals);
+    }
+
+    // 폼 닫기 (사용자에게 즉각 피드백)
+    setIsEditing(false);
+    toast({ title: "목표가 업데이트되었습니다!" });
+
+    // 2. 백그라운드에서 서버 저장
+    setIsSaving(true);
     const success = await save(input);
-    if (success) {
-      toast({ title: "설정이 저장되었습니다" });
-      setIsEditing(false);
-    } else {
-      toast({ title: "저장 실패", variant: "destructive" });
+    setIsSaving(false);
+
+    if (!success) {
+      // 저장 실패 시 롤백 알림 (UI는 이미 닫힌 상태)
+      toast({ 
+        title: "저장 실패", 
+        description: "네트워크 오류가 발생했습니다. 다시 시도해주세요.",
+        variant: "destructive" 
+      });
     }
   };
 
@@ -154,9 +178,18 @@ export function NutritionSettingsForm({ compact = false }: NutritionSettingsForm
               />
             </div>
           </div>
-          <Button className="w-full" onClick={handleSave} disabled={saving}>
-            <Save className="w-4 h-4 mr-2" />
-            {saving ? "저장 중..." : "저장"}
+          <Button className="w-full" onClick={handleSave} disabled={saving || isSaving}>
+            {(saving || isSaving) ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                저장 중...
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4 mr-2" />
+                저장
+              </>
+            )}
           </Button>
         </CardContent>
       </Card>
@@ -169,7 +202,7 @@ export function NutritionSettingsForm({ compact = false }: NutritionSettingsForm
       <Button
         variant="ghost"
         size="icon"
-        className="h-8 w-8"
+        className="h-8 w-8 bg-white/10 hover:bg-white/20"
         onClick={() => setIsEditing(true)}
       >
         <Pencil className="w-4 h-4" />
