@@ -150,20 +150,20 @@ export function HealthRecordDetailSheet({ record, open, onOpenChange, userNickna
     
     setSaving(true);
     try {
-      // 1. health_records에 코멘트 저장
+      // 1. health_records에 코멘트 저장 및 status를 completed로 변경
       const { error } = await supabase
         .from('health_records')
         .update({
           coach_comment: comment,
           reviewed_by: user.id,
           reviewed_at: new Date().toISOString(),
+          status: 'completed', // 코멘트 작성 시 바로 완료 상태로 변경
         })
         .eq('id', record.id);
 
       if (error) throw error;
 
       // 2. ai_health_reviews에도 저장 (사용자 화면에 실시간 반영용)
-      // 먼저 ai_health_reports가 있는지 확인하고, 없으면 생성
       let reportId = aiReport?.id;
       
       if (!reportId) {
@@ -201,7 +201,6 @@ export function HealthRecordDetailSheet({ record, open, onOpenChange, userNickna
 
         if (reviewError) {
           console.error('Error saving review:', reviewError);
-          // fallback: insert로 시도
           await supabase
             .from('ai_health_reviews')
             .insert({
@@ -211,6 +210,23 @@ export function HealthRecordDetailSheet({ record, open, onOpenChange, userNickna
               review_note: comment,
             });
         }
+      }
+
+      // 3. 사용자에게 알림 전송
+      const { error: notificationError } = await supabase
+        .from('notifications')
+        .insert({
+          user_id: record.user_id,
+          type: 'health_comment',
+          title: '건강검진 코멘트가 도착했어요',
+          message: comment.length > 50 ? comment.slice(0, 50) + '...' : comment,
+          related_id: record.id,
+          related_type: 'health_record',
+        });
+
+      if (notificationError) {
+        console.error('Notification error:', notificationError);
+        // 알림 실패해도 코멘트 저장은 성공으로 처리
       }
 
       toast({ title: '코멘트가 저장되었습니다' });
