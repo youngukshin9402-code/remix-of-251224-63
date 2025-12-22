@@ -219,8 +219,8 @@ export default function Exercise() {
     });
   };
 
-  // 장바구니에 운동 추가 (임시 저장)
-  const addToPendingExercises = () => {
+  // 장바구니에 운동 추가 (임시 저장) - 모달 유지, 운동명만 초기화
+  const addToPendingExercises = (keepModalOpen: boolean = false) => {
     if (!currentExercise) return;
     
     const sportLabel = SPORT_TYPES.find(s => s.value === currentExercise.sportType)?.label || currentExercise.sportType;
@@ -239,14 +239,30 @@ export default function Exercise() {
         idx === editingPendingIndex ? exerciseToAdd : ex
       ));
       setEditingPendingIndex(null);
+      setCurrentExercise(null);
+      setShowAddExercise(false);
+      toast({ title: "운동이 수정되었습니다" });
     } else {
       // 새로 추가
       setPendingExercises(prev => [...prev, exerciseToAdd]);
+      
+      if (keepModalOpen) {
+        // 모달 유지 + 운동명만 초기화 (종목 유지)
+        const currentSportType = currentExercise.sportType;
+        setCurrentExercise({
+          id: crypto.randomUUID(),
+          sportType: currentSportType,
+          name: "",
+          sets: currentSportType === "health" ? [{ reps: 10, weight: 20 }] : undefined,
+          duration: currentSportType !== "health" ? 30 : undefined,
+        });
+        toast({ title: "장바구니에 추가됨", description: "다른 운동을 계속 추가하세요" });
+      } else {
+        setCurrentExercise(null);
+        setShowAddExercise(false);
+        toast({ title: "운동이 장바구니에 추가되었습니다", description: "저장 버튼으로 한 번에 저장하세요" });
+      }
     }
-
-    setCurrentExercise(null);
-    setShowAddExercise(false);
-    toast({ title: "운동이 장바구니에 추가되었습니다", description: "저장 버튼으로 한 번에 저장하세요" });
   };
 
   // 장바구니에서 운동 제거
@@ -824,10 +840,20 @@ export default function Exercise() {
               <Button size="lg" className="w-full" onClick={saveExistingExercise}>
                 수정 완료
               </Button>
-            ) : (
-              <Button size="lg" className="w-full" onClick={addToPendingExercises}>
-                {editingPendingIndex !== null ? "수정 완료" : "운동 추가"}
+            ) : editingPendingIndex !== null ? (
+              <Button size="lg" className="w-full" onClick={() => addToPendingExercises(false)}>
+                수정 완료
               </Button>
+            ) : (
+              <div className="flex flex-col gap-2">
+                <Button size="lg" className="w-full" variant="outline" onClick={() => addToPendingExercises(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  + 운동명 추가 (계속)
+                </Button>
+                <Button size="lg" className="w-full" onClick={() => addToPendingExercises(false)}>
+                  장바구니에 추가 후 닫기
+                </Button>
+              </div>
             )}
           </div>
         ) : (
