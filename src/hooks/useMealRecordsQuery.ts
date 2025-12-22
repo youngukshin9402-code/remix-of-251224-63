@@ -38,6 +38,14 @@ function parseMealRecord(row: {
   };
 }
 
+type MealRecordsCacheEntry = {
+  records: MealRecordServer[];
+  cachedAt: number;
+};
+
+// 간단한 인메모리 캐시: 탭 이동/페이지 재진입 시 0으로 깜빡이는 현상 방지
+const mealRecordsCache = new Map<string, MealRecordsCacheEntry>();
+
 export interface UseMealRecordsQueryOptions {
   dateStr: string;
   enabled?: boolean;
@@ -46,15 +54,23 @@ export interface UseMealRecordsQueryOptions {
 
 export function useMealRecordsQuery({ dateStr, enabled = true, skipImageResolve = false }: UseMealRecordsQueryOptions) {
   const { user } = useAuth();
-  const [records, setRecords] = useState<MealRecordServer[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  const queryKey = useMemo(() => 
-    user ? getMealRecordsQueryKey(user.id, dateStr) : null, 
+  const queryKey = useMemo(
+    () => (user ? getMealRecordsQueryKey(user.id, dateStr) : null),
     [user, dateStr]
   );
+
+  const [records, setRecords] = useState<MealRecordServer[]>(() => {
+    if (!queryKey) return [];
+    return mealRecordsCache.get(queryKey)?.records ?? [];
+  });
+
+  const [loading, setLoading] = useState(() => {
+    if (!queryKey) return true;
+    return !mealRecordsCache.has(queryKey);
+  });
+  const [syncing, setSyncing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Helper to resolve image URLs
   const resolveImageUrl = useCallback(async (imageUrl: string | null): Promise<string | null> => {
@@ -283,10 +299,22 @@ export function useMealRecordsQuery({ dateStr, enabled = true, skipImageResolve 
     return result;
   }, [records]);
 
+  // queryKey가 바뀌면 (날짜/유저 변경, 탭 이동 후 재진입 등) 캐시를 즉시 반영
+  useEffect(() => {
+    if (!queryKey) return;
+    const cached = mealRecordsCache.get(queryKey);
+    if (cached) setRecords(cached.records);
+  }, [queryKey]);
+
+  // records 변경 시 캐시에 동기화
+  useEffect(() => {
+    if (!queryKey) return;
+    mealRecordsCache.set(queryKey, { records, cachedAt: Date.now() });
+  }, [queryKey, records]);
+
   useEffect(() => {
     fetch();
   }, [fetch]);
-
   // Realtime 구독: meal_records 변경 시 즉시 반영
   useEffect(() => {
     if (!user || !enabled) return;
