@@ -33,8 +33,11 @@ export function useGoalAchievement() {
     notifiedAt: null,
   });
   
-  // 이전 달성 상태 추적 (false→true 전환 감지용)
-  const prevAchievedRef = useRef<boolean>(false);
+  // 초기 로딩 완료 여부 (로딩 전에는 알림 체크 금지)
+  const [isLoaded, setIsLoaded] = useState(false);
+  
+  // 이번 세션에서 이미 알림을 표시했는지 (중복 방지)
+  const hasNotifiedThisSessionRef = useRef(false);
 
   // 오늘의 달성 상태 조회
   const fetchAchievementState = useCallback(async () => {
@@ -49,6 +52,7 @@ export function useGoalAchievement() {
 
     if (error) {
       console.error('Error fetching achievement state:', error);
+      setIsLoaded(true);
       return;
     }
 
@@ -57,7 +61,10 @@ export function useGoalAchievement() {
         achieved: data.achieved,
         notifiedAt: data.notified_at,
       });
-      prevAchievedRef.current = data.achieved;
+      // 이미 오늘 알림을 받았으면 세션 플래그도 true로
+      if (data.notified_at) {
+        hasNotifiedThisSessionRef.current = true;
+      }
     } else {
       // 오늘 레코드 없으면 생성
       const { error: insertError } = await supabase
@@ -73,60 +80,77 @@ export function useGoalAchievement() {
       }
       
       setAchievementState({ achieved: false, notifiedAt: null });
-      prevAchievedRef.current = false;
     }
+    
+    setIsLoaded(true);
   }, [user, today]);
 
   // 목표 달성 체크 및 알림
-  // 핵심: 이미 notifiedAt이 있으면(오늘 알림 완료) 재알림 금지
+  // 핵심: 오늘 이미 알림받았으면 (notifiedAt 존재) 절대 재알림 금지
   const checkAndNotify = useCallback(async (
     caloriesMet: boolean,
     waterMet: boolean,
     missionsMet: boolean
   ) => {
-    if (!user) return;
+    if (!user || !isLoaded) return;
 
     const allGoalsMet = caloriesMet && waterMet && missionsMet;
-    const wasAchieved = prevAchievedRef.current;
-    const alreadyNotifiedToday = achievementState.notifiedAt !== null;
-
-    // 상태 변화 없으면 무시
-    if (allGoalsMet === wasAchieved) return;
-
-    // DB 업데이트 - 알림은 한번만 (notifiedAt이 null일 때만 설정)
-    const shouldNotify = allGoalsMet && !wasAchieved && !alreadyNotifiedToday;
     
-    const { error } = await supabase
-      .from('daily_goal_achievements')
-      .upsert({
-        user_id: user.id,
-        date: today,
-        achieved: allGoalsMet,
-        notified_at: shouldNotify ? new Date().toISOString() : achievementState.notifiedAt,
-        updated_at: new Date().toISOString(),
-      }, {
-        onConflict: 'user_id,date',
-      });
-
-    if (error) {
-      console.error('Error updating achievement:', error);
+    // 이미 오늘 알림을 받았으면 무조건 스킵
+    if (achievementState.notifiedAt || hasNotifiedThisSessionRef.current) {
+      // DB에 achieved 상태만 업데이트 (알림 X)
+      if (allGoalsMet !== achievementState.achieved) {
+        await supabase
+          .from('daily_goal_achievements')
+          .upsert({
+            user_id: user.id,
+            date: today,
+            achieved: allGoalsMet,
+            notified_at: achievementState.notifiedAt, // 기존 값 유지
+            updated_at: new Date().toISOString(),
+          }, {
+            onConflict: 'user_id,date',
+          });
+        
+        setAchievementState(prev => ({ ...prev, achieved: allGoalsMet }));
+      }
       return;
     }
 
-    // 오늘 처음 달성 시에만 알림 (이미 알림 받았으면 X)
-    if (shouldNotify) {
+    // 목표 달성 시 최초 1회 알림
+    if (allGoalsMet) {
+      const nowIso = new Date().toISOString();
+      
+      const { error } = await supabase
+        .from('daily_goal_achievements')
+        .upsert({
+          user_id: user.id,
+          date: today,
+          achieved: true,
+          notified_at: nowIso,
+          updated_at: nowIso,
+        }, {
+          onConflict: 'user_id,date',
+        });
+
+      if (error) {
+        console.error('Error updating achievement:', error);
+        return;
+      }
+
+      // 알림 표시
       toast({
         title: "🎉 오늘의 목표 달성!",
         description: "칼로리, 물, 미션 모두 완료했어요!",
       });
-    }
 
-    prevAchievedRef.current = allGoalsMet;
-    setAchievementState({
-      achieved: allGoalsMet,
-      notifiedAt: shouldNotify ? new Date().toISOString() : achievementState.notifiedAt,
-    });
-  }, [user, today, toast, achievementState.notifiedAt]);
+      hasNotifiedThisSessionRef.current = true;
+      setAchievementState({
+        achieved: true,
+        notifiedAt: nowIso,
+      });
+    }
+  }, [user, today, toast, achievementState, isLoaded]);
 
   // 초기 로드
   useEffect(() => {
