@@ -33,6 +33,7 @@ import {
   WifiOff,
   CloudOff,
   Footprints,
+  Save,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useGymRecords, GymRecordServer, GymExercise, GymSet } from "@/hooks/useServerSync";
@@ -81,7 +82,7 @@ interface ExerciseRecord {
   sportType: string;
   name: string;
   sets?: GymSet[];
-  duration?: number; // 운동시간(분)
+  duration?: number;
   memo?: string;
   imageUrl?: string;
 }
@@ -99,12 +100,16 @@ export default function Exercise() {
   const [showCalendar, setShowCalendar] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
+  // 배치 저장을 위한 장바구니 상태
+  const [pendingExercises, setPendingExercises] = useState<ExerciseRecord[]>([]);
+  
   // 운동 기록 상태
   const [showAddExercise, setShowAddExercise] = useState(false);
   const [currentExercise, setCurrentExercise] = useState<ExerciseRecord | null>(null);
   const [machineImage, setMachineImage] = useState<string | null>(null);
   const [showMachineSuggestions, setShowMachineSuggestions] = useState(false);
   const [editingExerciseId, setEditingExerciseId] = useState<string | null>(null);
+  const [editingPendingIndex, setEditingPendingIndex] = useState<number | null>(null);
 
   const dateStr = format(selectedDate, "yyyy-MM-dd");
   const isToday = isSameDay(selectedDate, new Date());
@@ -122,7 +127,6 @@ export default function Exercise() {
       setIsOnline(true);
       toast({ title: "온라인 복귀", description: "데이터를 동기화합니다." });
       
-      // Sync pending items first
       const result = await syncPending();
       if (result.success > 0) {
         toast({ title: "동기화 완료", description: `${result.success}개 기록이 서버에 업로드되었습니다.` });
@@ -142,6 +146,11 @@ export default function Exercise() {
       window.removeEventListener('offline', handleOffline);
     };
   }, [refetch, toast, syncPending]);
+
+  // 날짜 변경 시 장바구니 초기화
+  useEffect(() => {
+    setPendingExercises([]);
+  }, [dateStr]);
 
   // 오늘 운동 기록
   const todayGymRecord = gymRecords.find((r) => r.date === dateStr);
@@ -210,19 +219,134 @@ export default function Exercise() {
     });
   };
 
-  // 운동 저장
-  const saveExercise = async () => {
-    // 세부 운동명(name)은 비워도 저장 가능
-    if (!user) {
-      toast({ title: "로그인이 필요합니다", variant: "destructive" });
+  // 장바구니에 운동 추가 (임시 저장)
+  const addToPendingExercises = () => {
+    if (!currentExercise) return;
+    
+    const sportLabel = SPORT_TYPES.find(s => s.value === currentExercise.sportType)?.label || currentExercise.sportType;
+    const displayName = currentExercise.name?.trim() 
+      ? `[${sportLabel}] ${currentExercise.name}` 
+      : `[${sportLabel}]`;
+    
+    const exerciseToAdd: ExerciseRecord = {
+      ...currentExercise,
+      name: displayName,
+    };
+
+    if (editingPendingIndex !== null) {
+      // 장바구니 내 수정
+      setPendingExercises(prev => prev.map((ex, idx) => 
+        idx === editingPendingIndex ? exerciseToAdd : ex
+      ));
+      setEditingPendingIndex(null);
+    } else {
+      // 새로 추가
+      setPendingExercises(prev => [...prev, exerciseToAdd]);
+    }
+
+    setCurrentExercise(null);
+    setShowAddExercise(false);
+    toast({ title: "운동이 장바구니에 추가되었습니다", description: "저장 버튼으로 한 번에 저장하세요" });
+  };
+
+  // 장바구니에서 운동 제거
+  const removeFromPending = (index: number) => {
+    setPendingExercises(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // 장바구니 운동 수정
+  const editPendingExercise = (index: number) => {
+    const exercise = pendingExercises[index];
+    // Parse sport type from name
+    const match = exercise.name.match(/^\[(.+?)\] ?(.*)$/);
+    let sportType = "health";
+    let name = exercise.name;
+    
+    if (match) {
+      const sportLabel = match[1];
+      const sport = SPORT_TYPES.find(s => s.label === sportLabel);
+      if (sport) {
+        sportType = sport.value;
+      }
+      name = match[2] || "";
+    }
+    
+    setCurrentExercise({
+      ...exercise,
+      sportType,
+      name,
+    });
+    setEditingPendingIndex(index);
+    setEditingExerciseId(null);
+    setShowAddExercise(true);
+  };
+
+  // 배치 저장 - 모든 장바구니 운동을 한 번에 저장
+  const saveAllExercises = async () => {
+    if (!user || pendingExercises.length === 0) {
+      toast({ title: "저장할 운동이 없습니다", variant: "destructive" });
       return;
     }
 
     try {
       const existingRecord = gymRecords.find((r) => r.date === dateStr);
       
-      // Convert to GymExercise format for storage
-      // name이 비어있으면 종목명만 표시
+      // Convert to GymExercise format
+      const exercisesToSave: GymExercise[] = pendingExercises.map(ex => ({
+        id: ex.id,
+        name: ex.name,
+        sets: ex.sets || [],
+        imageUrl: ex.imageUrl,
+      }));
+
+      if (isOnline) {
+        if (existingRecord) {
+          const newExercises = [...existingRecord.exercises, ...exercisesToSave];
+          await update(existingRecord.id, newExercises);
+        } else {
+          await add({
+            date: dateStr,
+            exercises: exercisesToSave,
+          });
+        }
+        toast({ title: `${exercisesToSave.length}개 운동 기록 저장 완료!` });
+      } else {
+        const localId = addToPending('gym_record', {
+          user_id: user.id,
+          date: dateStr,
+          exercises: existingRecord 
+            ? [...existingRecord.exercises, ...exercisesToSave]
+            : exercisesToSave,
+        });
+        
+        addOffline({
+          date: dateStr,
+          exercises: existingRecord 
+            ? [...existingRecord.exercises, ...exercisesToSave]
+            : exercisesToSave,
+        }, localId);
+        
+        toast({ 
+          title: "로컬에 저장됨", 
+          description: "온라인 복귀 시 자동으로 서버에 업로드됩니다." 
+        });
+      }
+
+      setPendingExercises([]);
+    } catch (error) {
+      console.error('Save error:', error);
+      toast({ title: "저장 실패", description: "다시 시도해주세요", variant: "destructive" });
+    }
+  };
+
+  // 기존 운동 수정 저장 (서버에 있는 기록)
+  const saveExistingExercise = async () => {
+    if (!user || !currentExercise || !editingExerciseId) return;
+
+    try {
+      const existingRecord = gymRecords.find((r) => r.date === dateStr);
+      if (!existingRecord) return;
+
       const sportLabel = SPORT_TYPES.find(s => s.value === currentExercise.sportType)?.label || currentExercise.sportType;
       const displayName = currentExercise.name?.trim() 
         ? `[${sportLabel}] ${currentExercise.name}` 
@@ -235,50 +359,12 @@ export default function Exercise() {
         imageUrl: currentExercise.imageUrl,
       };
 
-      if (isOnline) {
-        // 온라인: 서버에 직접 저장
-        if (existingRecord) {
-          let newExercises: GymExercise[];
-          
-          if (editingExerciseId) {
-            newExercises = existingRecord.exercises.map((ex) =>
-              ex.id === editingExerciseId ? exerciseToSave : ex
-            );
-          } else {
-            newExercises = [...existingRecord.exercises, exerciseToSave];
-          }
-          
-          await update(existingRecord.id, newExercises);
-        } else {
-          await add({
-            date: dateStr,
-            exercises: [exerciseToSave],
-          });
-        }
-        toast({ title: "운동 기록 저장 완료!" });
-      } else {
-        // 오프라인: pending queue에 저장 및 로컬 캐시에 추가
-        const localId = addToPending('gym_record', {
-          user_id: user.id,
-          date: dateStr,
-          exercises: existingRecord 
-            ? [...existingRecord.exercises, exerciseToSave]
-            : [exerciseToSave],
-        });
-        
-        // 로컬 UI 업데이트
-        addOffline({
-          date: dateStr,
-          exercises: existingRecord 
-            ? [...existingRecord.exercises, exerciseToSave]
-            : [exerciseToSave],
-        }, localId);
-        
-        toast({ 
-          title: "로컬에 저장됨", 
-          description: "온라인 복귀 시 자동으로 서버에 업로드됩니다." 
-        });
-      }
+      const newExercises = existingRecord.exercises.map((ex) =>
+        ex.id === editingExerciseId ? exerciseToSave : ex
+      );
+      
+      await update(existingRecord.id, newExercises);
+      toast({ title: "운동 기록 수정 완료!" });
 
       setCurrentExercise(null);
       setShowAddExercise(false);
@@ -296,24 +382,16 @@ export default function Exercise() {
 
     try {
       const newExercises = record.exercises.filter((ex) => ex.id !== exerciseId);
-      
-      if (newExercises.length === 0) {
-        // 기록 전체 삭제는 지원하지 않으므로 빈 배열로 업데이트
-        await update(record.id, []);
-      } else {
-        await update(record.id, newExercises);
-      }
-      
+      await update(record.id, newExercises);
       toast({ title: "삭제 완료" });
     } catch (error) {
       toast({ title: "삭제 실패", variant: "destructive" });
     }
   };
 
-  // 운동 수정
+  // 운동 수정 (서버에 있는 기록)
   const editExercise = (exercise: GymExercise) => {
-    // Parse sport type from name if possible
-    const match = exercise.name.match(/^\[(.+?)\] (.+)$/);
+    const match = exercise.name.match(/^\[(.+?)\] ?(.*)$/);
     let sportType = "health";
     let name = exercise.name;
     
@@ -323,7 +401,7 @@ export default function Exercise() {
       if (sport) {
         sportType = sport.value;
       }
-      name = match[2];
+      name = match[2] || "";
     }
     
     setCurrentExercise({
@@ -334,6 +412,7 @@ export default function Exercise() {
       imageUrl: exercise.imageUrl,
     });
     setEditingExerciseId(exercise.id);
+    setEditingPendingIndex(null);
     setShowAddExercise(true);
   };
 
@@ -353,6 +432,7 @@ export default function Exercise() {
       sets: [{ reps: 10, weight: 20 }],
     });
     setEditingExerciseId(null);
+    setEditingPendingIndex(null);
     setShowAddExercise(true);
   };
 
@@ -361,6 +441,7 @@ export default function Exercise() {
     setCurrentExercise(null);
     setShowAddExercise(false);
     setEditingExerciseId(null);
+    setEditingPendingIndex(null);
   };
 
   // 종목 변경 시 세트 초기화 여부 결정
@@ -512,12 +593,47 @@ export default function Exercise() {
           </DialogContent>
         </Dialog>
 
+        {/* 장바구니 (추가 대기 중인 운동들) */}
+        {pendingExercises.length > 0 && (
+          <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-primary">저장 대기 ({pendingExercises.length}개)</h3>
+              <Button onClick={saveAllExercises} size="sm" className="gap-2">
+                <Save className="w-4 h-4" />
+                모두 저장
+              </Button>
+            </div>
+            <div className="space-y-2">
+              {pendingExercises.map((exercise, index) => (
+                <div key={exercise.id} className="bg-card rounded-xl p-3 flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">{exercise.name}</p>
+                    {exercise.sets && exercise.sets.length > 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        {exercise.sets.length}세트
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex gap-1">
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => editPendingExercise(index)}>
+                      <Pencil className="w-4 h-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removeFromPending(index)}>
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* 운동 추가/수정 폼 */}
         {showAddExercise && currentExercise ? (
           <div className="bg-card rounded-3xl border border-border p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold">
-                {editingExerciseId ? "운동 수정" : "운동 추가"}
+                {editingExerciseId ? "운동 수정" : editingPendingIndex !== null ? "운동 수정" : "운동 추가"}
               </h3>
               <Button variant="ghost" size="icon" onClick={cancelExercise}>
                 <X className="w-5 h-5" />
@@ -544,15 +660,15 @@ export default function Exercise() {
               </Select>
             </div>
 
-            {/* 운동명/세부종목 */}
+            {/* 운동명/세부종목 (선택사항) */}
             <div>
               <label className="text-sm font-medium text-muted-foreground">
-                {currentExercise.sportType === "health" ? "운동명" : "세부 내용"}
+                {currentExercise.sportType === "health" ? "운동명 (선택)" : "세부 내용 (선택)"}
               </label>
               <Input
                 value={currentExercise.name}
                 onChange={(e) => setCurrentExercise({ ...currentExercise, name: e.target.value })}
-                placeholder={currentExercise.sportType === "health" ? "예: 벤치프레스" : "예: 자유형 500m"}
+                placeholder={currentExercise.sportType === "health" ? "예: 벤치프레스 (비워도 저장 가능)" : "예: 자유형 500m (비워도 저장 가능)"}
                 className="mt-1"
               />
             </div>
@@ -699,9 +815,16 @@ export default function Exercise() {
               </div>
             )}
 
-            <Button size="lg" className="w-full" onClick={saveExercise}>
-              저장
-            </Button>
+            {/* 저장 버튼 */}
+            {editingExerciseId ? (
+              <Button size="lg" className="w-full" onClick={saveExistingExercise}>
+                수정 완료
+              </Button>
+            ) : (
+              <Button size="lg" className="w-full" onClick={addToPendingExercises}>
+                {editingPendingIndex !== null ? "수정 완료" : "운동 추가"}
+              </Button>
+            )}
           </div>
         ) : (
           /* 운동 추가 버튼 */
