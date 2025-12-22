@@ -89,12 +89,18 @@ export function HealthRecordDetailSheet({ record, open, onOpenChange, userNickna
       setLoading(true);
       
       try {
-        // 이미지 URL 생성
+        // 이미지 URL 생성 (signed URL 사용 - 버킷이 private이므로)
         if (record.raw_image_urls && record.raw_image_urls.length > 0) {
           const urls = await Promise.all(
             record.raw_image_urls.map(async (path) => {
-              const { data } = supabase.storage.from('health-checkups').getPublicUrl(path);
-              return data.publicUrl;
+              const { data, error } = await supabase.storage
+                .from('health-checkups')
+                .createSignedUrl(path, 3600); // 1시간 유효
+              if (error || !data?.signedUrl) {
+                console.error('Signed URL error:', error);
+                return '/placeholder.svg';
+              }
+              return data.signedUrl;
             })
           );
           setImageUrls(urls);
