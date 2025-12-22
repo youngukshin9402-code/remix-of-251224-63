@@ -78,13 +78,20 @@ export default function Dashboard() {
 
   // 단일 소스: nutrition_settings에서 목표, meal_records에서 섭취량
   const { getGoals, hasSettings } = useNutritionSettings();
-  const { totals, loading: mealsLoading, refetch: refetchMeals } = useTodayMealRecords();
+  const {
+    totals,
+    records: todayMealRecords,
+    loading: mealsLoading,
+    refetch: refetchMeals,
+  } = useTodayMealRecords();
   const { checkAndNotify } = useGoalAchievement();
 
   const goals = getGoals();
   // Dashboard 칼로리는 무조건 오늘 meal_records 합계 사용 (DailyData 컨텍스트 대신)
   const todayCalories = totals.totalCalories;
   const calorieGoal = goals.calorieGoal;
+  const caloriesReady = todayMealRecords.length > 0 || !mealsLoading;
+  const caloriesMet = caloriesReady && calorieGoal > 0 && todayCalories >= calorieGoal;
 
   const [showAIDialog, setShowAIDialog] = useState(false);
   const [aiQuestion, setAIQuestion] = useState("");
@@ -121,13 +128,13 @@ export default function Dashboard() {
     const completedMissionsCount = todayMissions?.missions.filter(m => m.completed).length || 0;
     const totalMissionsCount = todayMissions?.missions.length || 3;
     
-    // 수정: 칼로리는 목표 이상, 물은 목표 이상일 때 달성
-    const caloriesMet = todayCalories >= calorieGoal;
+    // 수정: 칼로리는 로딩 완료(또는 캐시 존재) 이후에만 목표 판정, 물은 목표 이상일 때 달성
+    const caloriesMet = caloriesReady && calorieGoal > 0 && todayCalories >= calorieGoal;
     const waterMet = todayWater >= waterGoal;
     const missionsMet = completedMissionsCount === totalMissionsCount && totalMissionsCount > 0;
     
     checkAndNotify(caloriesMet, waterMet, missionsMet);
-  }, [todayCalories, calorieGoal, todayWater, waterGoal, todayMissions, checkAndNotify]);
+  }, [caloriesReady, todayCalories, calorieGoal, todayWater, waterGoal, todayMissions, checkAndNotify]);
 
   const handleMissionToggle = async (missionId: string) => {
     const allCompletedBefore = todayMissions?.missions.every(m => m.completed) || false;
@@ -200,18 +207,26 @@ export default function Dashboard() {
                   </div>
                   <span className="text-xs text-muted-foreground whitespace-nowrap truncate">섭취 칼로리</span>
                 </div>
-                {todayCalories >= calorieGoal && calorieGoal > 0 && (
+                {caloriesMet && (
                   <Badge className="bg-health-green text-white text-[9px] px-1 py-0 shrink-0">
                     달성
                   </Badge>
                 )}
               </div>
-              <p className="text-lg font-bold">{todayCalories.toLocaleString()}</p>
+              <p className="text-lg font-bold tabular-nums">
+                {caloriesReady ? todayCalories.toLocaleString() : "…"}
+              </p>
               <p className="text-[10px] text-muted-foreground">목표 {calorieGoal.toLocaleString()} kcal</p>
               <div className="mt-1.5 h-1 bg-muted rounded-full overflow-hidden">
                 <div
                   className="h-full bg-health-orange transition-all"
-                  style={{ width: `${Math.min((todayCalories / calorieGoal) * 100, 100)}%` }}
+                  style={{
+                    width: `${
+                      caloriesReady && calorieGoal > 0
+                        ? Math.min((todayCalories / calorieGoal) * 100, 100)
+                        : 0
+                    }%`,
+                  }}
                 />
               </div>
             </div>
