@@ -9,10 +9,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -25,6 +23,7 @@ import {
   Brain,
   User,
 } from 'lucide-react';
+import { HealthRecordDetailSheet } from '@/components/health/HealthRecordDetailSheet';
 
 interface AIHealthReport {
   id: string;
@@ -36,29 +35,19 @@ interface AIHealthReport {
   input_snapshot: any;
   created_at: string;
   user_nickname?: string;
-}
-
-interface ReviewForm {
-  review_note: string;
-  overrides: string; // JSON string
+  raw_image_urls?: string[];
 }
 
 export default function AdminHealthReviews() {
-  const { user, isAdmin } = useAuth();
+  const { isAdmin } = useAuth();
   const { toast } = useToast();
   
   const [reports, setReports] = useState<AIHealthReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'published'>('all');
   
   const [selectedReport, setSelectedReport] = useState<AIHealthReport | null>(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [reviewForm, setReviewForm] = useState<ReviewForm>({
-    review_note: '',
-    overrides: '',
-  });
-  const [saving, setSaving] = useState(false);
+  const [detailSheetOpen, setDetailSheetOpen] = useState(false);
 
   const fetchReports = async () => {
     setLoading(true);
@@ -73,22 +62,28 @@ export default function AdminHealthReviews() {
 
       if (error) throw error;
 
-      // 사용자 닉네임 조회
+      // 사용자 닉네임 및 health_records의 raw_image_urls 조회
       if (data && data.length > 0) {
         const userIds = [...new Set(data.map(r => r.user_id))];
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, nickname')
-          .in('id', userIds);
-
-        const profileMap = new Map(profiles?.map(p => [p.id, p.nickname]));
+        const sourceRecordIds = data.filter(r => r.source_record_id).map(r => r.source_record_id);
         
-        const reportsWithNickname = data.map(r => ({
+        const [profilesRes, recordsRes] = await Promise.all([
+          supabase.from('profiles').select('id, nickname').in('id', userIds),
+          sourceRecordIds.length > 0 
+            ? supabase.from('health_records').select('id, raw_image_urls').in('id', sourceRecordIds)
+            : Promise.resolve({ data: [] })
+        ]);
+
+        const profileMap = new Map<string, string | null>(profilesRes.data?.map(p => [p.id, p.nickname] as [string, string | null]) || []);
+        const recordsMap = new Map<string, string[]>(recordsRes.data?.map(r => [r.id, r.raw_image_urls] as [string, string[]]) || []);
+        
+        const reportsWithData = data.map(r => ({
           ...r,
           user_nickname: profileMap.get(r.user_id) || '사용자',
+          raw_image_urls: r.source_record_id ? (recordsMap.get(r.source_record_id) || []) : [],
         }));
 
-        setReports(reportsWithNickname);
+        setReports(reportsWithData);
       } else {
         setReports([]);
       }
@@ -106,73 +101,9 @@ export default function AdminHealthReviews() {
     }
   }, [isAdmin]);
 
-  const handleViewReport = async (report: AIHealthReport) => {
+  const handleViewReport = (report: AIHealthReport) => {
     setSelectedReport(report);
-    
-    // 기존 검토 내용 로드
-    const { data: existingReview } = await supabase
-      .from('ai_health_reviews')
-      .select('*')
-      .eq('report_id', report.id)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (existingReview) {
-      setReviewForm({
-        review_note: existingReview.review_note || '',
-        overrides: existingReview.overrides ? JSON.stringify(existingReview.overrides, null, 2) : '',
-      });
-    } else {
-      setReviewForm({ review_note: '', overrides: '' });
-    }
-    
-    setDialogOpen(true);
-  };
-
-  const handlePublishReview = async () => {
-    if (!selectedReport || !user) return;
-    
-    setSaving(true);
-    
-    try {
-      // overrides 파싱
-      let parsedOverrides = null;
-      if (reviewForm.overrides.trim()) {
-        try {
-          parsedOverrides = JSON.parse(reviewForm.overrides);
-        } catch {
-          toast({ title: 'overrides JSON 형식 오류', variant: 'destructive' });
-          setSaving(false);
-          return;
-        }
-      }
-
-      // 기존 검토 삭제 후 새로 생성 (또는 upsert)
-      const { error } = await supabase
-        .from('ai_health_reviews')
-        .upsert({
-          report_id: selectedReport.id,
-          admin_id: user.id,
-          review_note: reviewForm.review_note || null,
-          overrides: parsedOverrides,
-          review_status: 'published',
-          updated_at: new Date().toISOString(),
-        }, {
-          onConflict: 'report_id',
-        });
-
-      if (error) throw error;
-
-      toast({ title: '검토 완료 및 공개됨' });
-      setDialogOpen(false);
-      fetchReports();
-    } catch (err) {
-      console.error('Error publishing review:', err);
-      toast({ title: '저장 실패', variant: 'destructive' });
-    } finally {
-      setSaving(false);
-    }
+    setDetailSheetOpen(true);
   };
 
   // 필터링
@@ -307,71 +238,21 @@ export default function AdminHealthReviews() {
         )}
       </div>
 
-      {/* 검토 다이얼로그 */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>건강검진 AI 검토</DialogTitle>
-          </DialogHeader>
-          
-          {selectedReport && (
-            <div className="space-y-4">
-              {/* 사용자 정보 */}
-              <div className="bg-muted rounded-xl p-3">
-                <p className="text-sm font-medium">사용자: {selectedReport.user_nickname}</p>
-                <p className="text-xs text-muted-foreground">
-                  분석일: {new Date(selectedReport.created_at).toLocaleString('ko-KR')}
-                </p>
-              </div>
-
-              {/* AI 분석 결과 */}
-              <div>
-                <h4 className="font-medium mb-2 flex items-center gap-2">
-                  <Brain className="w-4 h-4" />
-                  AI 분석 결과
-                </h4>
-                <pre className="bg-muted rounded-xl p-3 text-xs overflow-auto max-h-40">
-                  {JSON.stringify(selectedReport.ai_result, null, 2)}
-                </pre>
-              </div>
-
-              {/* 검토 노트 */}
-              <div>
-                <label className="text-sm font-medium">검토 코멘트</label>
-                <Textarea
-                  value={reviewForm.review_note}
-                  onChange={(e) => setReviewForm({ ...reviewForm, review_note: e.target.value })}
-                  placeholder="사용자에게 표시될 전문가 코멘트..."
-                  rows={3}
-                  className="mt-1"
-                />
-              </div>
-
-              {/* Overrides (선택) */}
-              <div>
-                <label className="text-sm font-medium">Overrides (JSON, 선택)</label>
-                <Textarea
-                  value={reviewForm.overrides}
-                  onChange={(e) => setReviewForm({ ...reviewForm, overrides: e.target.value })}
-                  placeholder='{"summary": "수정된 요약", "health_score": 85}'
-                  rows={4}
-                  className="mt-1 font-mono text-xs"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  AI 결과를 덮어쓸 필드만 입력하세요
-                </p>
-              </div>
-            </div>
-          )}
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>취소</Button>
-            <Button onClick={handlePublishReview} disabled={saving}>
-              {saving ? '저장 중...' : '검토 완료 및 공개'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* 상세보기 Sheet */}
+      {selectedReport && (
+        <HealthRecordDetailSheet
+          open={detailSheetOpen}
+          onOpenChange={setDetailSheetOpen}
+          record={selectedReport.source_record_id ? {
+            id: selectedReport.source_record_id,
+            user_id: selectedReport.user_id,
+            raw_image_urls: selectedReport.raw_image_urls || [],
+            status: selectedReport.status,
+            created_at: selectedReport.created_at,
+          } : null}
+          userNickname={selectedReport.user_nickname}
+        />
+      )}
     </div>
   );
 }
