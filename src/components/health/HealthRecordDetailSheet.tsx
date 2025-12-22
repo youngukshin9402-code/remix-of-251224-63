@@ -45,6 +45,7 @@ interface HealthRecord {
   health_tags?: string[];
   coach_comment?: string;
   created_at: string;
+  parsed_data?: any; // AI 분석 결과 fallback용
 }
 
 interface AIReport {
@@ -149,6 +150,7 @@ export function HealthRecordDetailSheet({ record, open, onOpenChange, userNickna
     
     setSaving(true);
     try {
+      // 1. health_records에 코멘트 저장
       const { error } = await supabase
         .from('health_records')
         .update({
@@ -159,6 +161,57 @@ export function HealthRecordDetailSheet({ record, open, onOpenChange, userNickna
         .eq('id', record.id);
 
       if (error) throw error;
+
+      // 2. ai_health_reviews에도 저장 (사용자 화면에 실시간 반영용)
+      // 먼저 ai_health_reports가 있는지 확인하고, 없으면 생성
+      let reportId = aiReport?.id;
+      
+      if (!reportId) {
+        // ai_health_reports가 없으면 생성
+        const { data: newReport, error: reportError } = await supabase
+          .from('ai_health_reports')
+          .insert({
+            user_id: record.user_id,
+            source_type: 'health_checkup',
+            source_record_id: record.id,
+            status: 'completed',
+            ai_result: record.parsed_data || {},
+          })
+          .select('id')
+          .single();
+
+        if (!reportError && newReport) {
+          reportId = newReport.id;
+          setAiReport({ id: newReport.id, status: 'completed', ai_result: record.parsed_data, created_at: new Date().toISOString() });
+        }
+      }
+
+      if (reportId) {
+        // ai_health_reviews에 upsert
+        const { error: reviewError } = await supabase
+          .from('ai_health_reviews')
+          .upsert({
+            report_id: reportId,
+            admin_id: user.id,
+            review_status: 'published',
+            review_note: comment,
+          }, {
+            onConflict: 'report_id,admin_id',
+          });
+
+        if (reviewError) {
+          console.error('Error saving review:', reviewError);
+          // fallback: insert로 시도
+          await supabase
+            .from('ai_health_reviews')
+            .insert({
+              report_id: reportId,
+              admin_id: user.id,
+              review_status: 'published',
+              review_note: comment,
+            });
+        }
+      }
 
       toast({ title: '코멘트가 저장되었습니다' });
     } catch (err) {
@@ -252,7 +305,7 @@ export function HealthRecordDetailSheet({ record, open, onOpenChange, userNickna
                     </CardContent>
                   </Card>
 
-                  {/* 2. AI 분석 결과 */}
+                  {/* 2. AI 분석 결과 (aiReport 또는 parsed_data fallback) */}
                   <Card>
                     <CardHeader className="pb-3">
                       <CardTitle className="flex items-center gap-2 text-base">
@@ -261,61 +314,98 @@ export function HealthRecordDetailSheet({ record, open, onOpenChange, userNickna
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      {aiReport ? (
-                        <div className="space-y-3">
-                          {aiReport.ai_result?.summary && (
-                            <p className="text-sm">{aiReport.ai_result.summary}</p>
-                          )}
-                          
-                          {aiReport.ai_result?.health_score !== undefined && (
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm text-muted-foreground">건강 점수:</span>
-                              <span className="font-semibold text-lg text-primary">
-                                {aiReport.ai_result.health_score}점
-                              </span>
-                            </div>
-                          )}
+                      {(() => {
+                        // AI 리포트가 있으면 사용, 없으면 parsed_data fallback
+                        const analysisData = aiReport?.ai_result || record.parsed_data;
+                        
+                        if (analysisData) {
+                          return (
+                            <div className="space-y-3">
+                              {analysisData.summary && (
+                                <p className="text-sm">{analysisData.summary}</p>
+                              )}
+                              
+                              {analysisData.health_age && (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm text-muted-foreground">건강 나이:</span>
+                                  <span className="font-semibold text-lg text-primary">
+                                    {analysisData.health_age}세
+                                  </span>
+                                </div>
+                              )}
 
-                          {aiReport.ai_result?.recommendations?.length > 0 && (
-                            <div>
-                              <p className="text-sm font-medium mb-2">권장사항</p>
-                              <ul className="space-y-1">
-                                {aiReport.ai_result.recommendations.map((rec: string, idx: number) => (
-                                  <li key={idx} className="text-sm text-muted-foreground flex items-start gap-2">
-                                    <CheckCircle className="w-4 h-4 text-health-green shrink-0 mt-0.5" />
-                                    {rec}
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
+                              {analysisData.health_score !== undefined && (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm text-muted-foreground">건강 점수:</span>
+                                  <span className="font-semibold text-lg text-primary">
+                                    {analysisData.health_score}점
+                                  </span>
+                                </div>
+                              )}
 
-                          {aiReport.ai_result?.risk_factors?.length > 0 && (
-                            <div>
-                              <p className="text-sm font-medium mb-2">주의 항목</p>
-                              <ul className="space-y-1">
-                                {aiReport.ai_result.risk_factors.map((risk: string, idx: number) => (
-                                  <li key={idx} className="text-sm text-muted-foreground flex items-start gap-2">
-                                    <AlertCircle className="w-4 h-4 text-yellow-500 shrink-0 mt-0.5" />
-                                    {risk}
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
+                              {analysisData.recommendations?.length > 0 && (
+                                <div>
+                                  <p className="text-sm font-medium mb-2">권장사항</p>
+                                  <ul className="space-y-1">
+                                    {analysisData.recommendations.map((rec: string, idx: number) => (
+                                      <li key={idx} className="text-sm text-muted-foreground flex items-start gap-2">
+                                        <CheckCircle className="w-4 h-4 text-health-green shrink-0 mt-0.5" />
+                                        {rec}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
 
-                          {!aiReport.ai_result && (
-                            <p className="text-sm text-muted-foreground">분석 결과 데이터가 없습니다</p>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="text-center py-6">
-                          <Clock className="w-8 h-8 mx-auto mb-2 text-muted-foreground/50" />
-                          <p className="text-sm text-muted-foreground">
-                            AI 분석 결과가 아직 없습니다
-                          </p>
-                        </div>
-                      )}
+                              {analysisData.risk_factors?.length > 0 && (
+                                <div>
+                                  <p className="text-sm font-medium mb-2">주의 항목</p>
+                                  <ul className="space-y-1">
+                                    {analysisData.risk_factors.map((risk: string, idx: number) => (
+                                      <li key={idx} className="text-sm text-muted-foreground flex items-start gap-2">
+                                        <AlertCircle className="w-4 h-4 text-yellow-500 shrink-0 mt-0.5" />
+                                        {risk}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+
+                              {/* items 배열 표시 (parsed_data에서) */}
+                              {analysisData.items?.length > 0 && (
+                                <div>
+                                  <p className="text-sm font-medium mb-2">검사 항목</p>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    {analysisData.items.slice(0, 6).map((item: any, idx: number) => (
+                                      <div key={idx} className="bg-muted/50 rounded-lg p-2">
+                                        <p className="text-xs text-muted-foreground">{item.name}</p>
+                                        <p className="text-sm font-medium">
+                                          {item.value} {item.unit}
+                                        </p>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {!aiReport && (
+                                <p className="text-xs text-muted-foreground mt-2">
+                                  * health_records.parsed_data에서 로드됨
+                                </p>
+                              )}
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div className="text-center py-6">
+                            <Clock className="w-8 h-8 mx-auto mb-2 text-muted-foreground/50" />
+                            <p className="text-sm text-muted-foreground">
+                              AI 분석 결과가 아직 없습니다
+                            </p>
+                          </div>
+                        );
+                      })()}
                     </CardContent>
                   </Card>
 
