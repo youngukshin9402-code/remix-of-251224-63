@@ -70,18 +70,23 @@ export default function AdminHealthReviews() {
         const [profilesRes, recordsRes] = await Promise.all([
           supabase.from('profiles').select('id, nickname').in('id', userIds),
           sourceRecordIds.length > 0 
-            ? supabase.from('health_records').select('id, raw_image_urls').in('id', sourceRecordIds)
+            ? supabase.from('health_records').select('id, raw_image_urls, parsed_data, user_id, status, health_age, health_tags, coach_comment, created_at').in('id', sourceRecordIds)
             : Promise.resolve({ data: [] })
         ]);
 
-        const profileMap = new Map<string, string | null>(profilesRes.data?.map(p => [p.id, p.nickname] as [string, string | null]) || []);
-        const recordsMap = new Map<string, string[]>(recordsRes.data?.map(r => [r.id, r.raw_image_urls] as [string, string[]]) || []);
+        const profileMap = new Map<string, string | null>(profilesRes.data?.map(p => [p.id, p.nickname]) || []);
+        const recordsMap = new Map<string, any>();
+        recordsRes.data?.forEach(r => recordsMap.set(r.id, r));
         
-        const reportsWithData = data.map(r => ({
-          ...r,
-          user_nickname: profileMap.get(r.user_id) || '사용자',
-          raw_image_urls: r.source_record_id ? (recordsMap.get(r.source_record_id) || []) : [],
-        }));
+        const reportsWithData = data.map(r => {
+          const healthRecord = r.source_record_id ? recordsMap.get(r.source_record_id) : null;
+          return {
+            ...r,
+            user_nickname: profileMap.get(r.user_id) || '사용자',
+            raw_image_urls: healthRecord?.raw_image_urls || [],
+            health_record: healthRecord, // 전체 health_record 전달
+          };
+        });
 
         setReports(reportsWithData);
       } else {
