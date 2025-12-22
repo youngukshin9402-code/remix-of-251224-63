@@ -71,15 +71,15 @@ export default function Dashboard() {
     toggleMission,
     reshuffleMissions,
     refreshWater,
-    refreshCalories,
     refreshPoints,
   } = useDailyData();
 
   // 단일 소스: nutrition_settings에서 목표, meal_records에서 섭취량
   const { getGoals, hasSettings } = useNutritionSettings();
-  const { totals, refetch: refetchMeals } = useTodayMealRecords();
+  const { totals, loading: mealsLoading, refetch: refetchMeals } = useTodayMealRecords();
 
   const goals = getGoals();
+  // Dashboard 칼로리는 무조건 오늘 meal_records 합계 사용 (DailyData 컨텍스트 대신)
   const todayCalories = totals.totalCalories;
   const calorieGoal = goals.calorieGoal;
 
@@ -88,24 +88,22 @@ export default function Dashboard() {
 
   const today = getTodayString();
 
-  // Refresh data on mount and focus
+  // Refresh data on mount and focus (meal_records만 호출, DailyData calories는 사용 안함)
   useEffect(() => {
     refreshWater();
-    refreshCalories();
     refreshPoints();
     refetchMeals();
-  }, [refreshWater, refreshCalories, refreshPoints, refetchMeals]);
+  }, [refreshWater, refreshPoints, refetchMeals]);
 
   useEffect(() => {
     const handleFocus = () => {
       refreshWater();
-      refreshCalories();
       refreshPoints();
       refetchMeals();
     };
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
-  }, [refreshWater, refreshCalories, refreshPoints, refetchMeals]);
+  }, [refreshWater, refreshPoints, refetchMeals]);
 
   // Initialize missions if not exists
   useEffect(() => {

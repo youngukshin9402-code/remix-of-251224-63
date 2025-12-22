@@ -2,34 +2,26 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { ChatWindow } from '@/components/chat/ChatWindow';
 import { useChat } from '@/hooks/useChat';
 import { useAuth } from '@/contexts/AuthContext';
-import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
 
 export default function Chat() {
   const navigate = useNavigate();
   const { profile } = useAuth();
-  const [coachId, setCoachId] = useState<string | null>(null);
-  const [coachName, setCoachName] = useState<string>('');
-  const [loadingCoach, setLoadingCoach] = useState(true);
+  const assignedCoachId = profile?.assigned_coach_id ?? null;
   
-  // 코치 정보 로드 (채팅 연결은 assigned_coach_id로 바로 처리)
-  useEffect(() => {
-    const assignedCoachId = profile?.assigned_coach_id ?? null;
+  // coachName은 백그라운드 로딩, 채팅 UI는 바로 표시
+  const [coachName, setCoachName] = useState<string>('코치');
+  const [loadingName, setLoadingName] = useState(true);
 
+  // 코치 이름 백그라운드 로딩
+  useEffect(() => {
     if (!assignedCoachId) {
-      setCoachId(null);
-      setCoachName('');
-      setLoadingCoach(false);
+      setLoadingName(false);
       return;
     }
-
-    // 채팅 파트너 ID는 프로필에 이미 있으므로 바로 세팅 (RLS로 코치 프로필 조회가 막혀도 채팅은 가능)
-    setCoachId(assignedCoachId);
-    setLoadingCoach(true);
 
     const loadCoachName = async () => {
       try {
@@ -41,25 +33,22 @@ export default function Chat() {
 
         if (!error && data?.nickname) {
           setCoachName(data.nickname);
-        } else {
-          setCoachName('코치');
         }
       } catch (error) {
         console.error('Error loading coach name:', error);
-        setCoachName('코치');
       } finally {
-        setLoadingCoach(false);
+        setLoadingName(false);
       }
     };
 
     loadCoachName();
-  }, [profile?.assigned_coach_id]);
+  }, [assignedCoachId]);
 
   // 코치 ID가 설정된 후에만 채팅 훅 사용
-  const { messages, loading, sending, sendMessage } = useChat(coachId || undefined);
+  const { messages, loading, sending, sendMessage, sendImageMessage } = useChat(assignedCoachId || undefined);
 
   // No assigned coach
-  if (!loadingCoach && !profile?.assigned_coach_id) {
+  if (!assignedCoachId) {
     return (
       <div className="min-h-screen bg-background">
         <header className="sticky top-0 z-10 bg-card border-b px-4 py-3 flex items-center gap-3">
@@ -86,22 +75,7 @@ export default function Chat() {
     );
   }
 
-  if (loadingCoach) {
-    return (
-      <div className="min-h-screen bg-background">
-        <header className="sticky top-0 z-10 bg-card border-b px-4 py-3 flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <Skeleton className="h-6 w-24" />
-        </header>
-        <div className="p-4">
-          <Skeleton className="h-96 w-full" />
-        </div>
-      </div>
-    );
-  }
-
+  // 채팅 UI 바로 표시 (이름만 늦게 로딩)
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <header className="sticky top-0 z-10 bg-card border-b px-4 py-3 flex items-center gap-3">
@@ -109,7 +83,9 @@ export default function Chat() {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-lg font-semibold">{coachName} 코치</h1>
+          <h1 className="text-lg font-semibold">
+            {loadingName ? '코치' : coachName} 코치
+          </h1>
           <p className="text-xs text-muted-foreground">1:1 채팅</p>
         </div>
       </header>
@@ -120,7 +96,8 @@ export default function Chat() {
           loading={loading}
           sending={sending}
           onSendMessage={sendMessage}
-          partnerName={coachName}
+          onSendImage={sendImageMessage}
+          partnerName={loadingName ? '코치' : coachName}
         />
       </div>
     </div>
