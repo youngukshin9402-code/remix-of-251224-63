@@ -2,6 +2,7 @@
  * 영양 요약 카드 컴포넌트
  * - 섭취/목표 kcal 크게 표시
  * - 탄/단/지 진행률 및 g 표시
+ * - 낙관적 업데이트 지원
  */
 
 import { Flame, Beef, Wheat, Droplet } from "lucide-react";
@@ -14,9 +15,10 @@ interface NutritionSummaryCardProps {
   totals: NutritionTotals;
   goals: NutritionGoals;
   hasSettings: boolean;
+  onGoalsUpdate?: (goals: NutritionGoals) => void;
 }
 
-export function NutritionSummaryCard({ totals, goals, hasSettings }: NutritionSummaryCardProps) {
+export function NutritionSummaryCard({ totals, goals, hasSettings, onGoalsUpdate }: NutritionSummaryCardProps) {
   const caloriePercent = calculatePercentage(totals.totalCalories, goals.calorieGoal);
   const carbPercent = calculatePercentage(totals.totalCarbs, goals.carbGoalG);
   const proteinPercent = calculatePercentage(totals.totalProtein, goals.proteinGoalG);
@@ -25,7 +27,7 @@ export function NutritionSummaryCard({ totals, goals, hasSettings }: NutritionSu
 
   // 설정 없으면 설정 유도
   if (!hasSettings) {
-    return <NutritionSettingsForm />;
+    return <NutritionSettingsForm onGoalsUpdate={onGoalsUpdate} />;
   }
 
   return (
@@ -39,7 +41,7 @@ export function NutritionSummaryCard({ totals, goals, hasSettings }: NutritionSu
             <span className="text-lg text-white/80">/ {goals.calorieGoal.toLocaleString()} kcal</span>
           </div>
         </div>
-        <NutritionSettingsForm compact />
+        <NutritionSettingsForm compact onGoalsUpdate={onGoalsUpdate} />
       </div>
 
       {/* 칼로리 프로그레스 */}
@@ -50,7 +52,7 @@ export function NutritionSummaryCard({ totals, goals, hasSettings }: NutritionSu
         />
         <p className="text-sm text-white/80 mt-2 flex items-center gap-1">
           <Flame className="w-4 h-4" />
-          {totals.totalCalories}kcal 섭취 | {remaining}kcal 더 먹을 수 있어요
+          {totals.totalCalories}kcal 섭취 | {remaining > 0 ? `${remaining}kcal 더 먹을 수 있어요` : "목표 달성!"}
         </p>
       </div>
 
