@@ -1,6 +1,7 @@
 import { Outlet, useLocation, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDailyData } from "@/contexts/DailyDataContext";
+import { NotificationDropdown } from "@/components/notifications/NotificationDropdown";
 import {
   Home,
   Stethoscope,
@@ -51,7 +52,10 @@ export function AppLayout() {
             <span className="text-xl font-bold text-foreground">영양갱</span>
           </Link>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            {/* 알림 드롭다운 */}
+            <NotificationDropdown />
+            
             {profile && (
               <div className="text-right">
                 <p className="text-sm font-medium text-foreground">
