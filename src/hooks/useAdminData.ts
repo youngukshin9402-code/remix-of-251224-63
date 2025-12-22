@@ -40,6 +40,7 @@ interface HealthRecord {
   health_tags: string[] | null;
   created_at: string;
   coach_comment: string | null;
+  raw_image_urls: string[];
   user?: { nickname: string | null };
 }
 
