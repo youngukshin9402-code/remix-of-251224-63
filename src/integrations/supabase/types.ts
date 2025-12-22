@@ -50,6 +50,80 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_health_reports: {
+        Row: {
+          ai_result: Json | null
+          created_at: string
+          id: string
+          input_snapshot: Json | null
+          source_record_id: string | null
+          source_type: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          ai_result?: Json | null
+          created_at?: string
+          id?: string
+          input_snapshot?: Json | null
+          source_record_id?: string | null
+          source_type?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          ai_result?: Json | null
+          created_at?: string
+          id?: string
+          input_snapshot?: Json | null
+          source_record_id?: string | null
+          source_type?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      ai_health_reviews: {
+        Row: {
+          admin_id: string
+          created_at: string
+          id: string
+          overrides: Json | null
+          report_id: string
+          review_note: string | null
+          review_status: string
+          updated_at: string
+        }
+        Insert: {
+          admin_id: string
+          created_at?: string
+          id?: string
+          overrides?: Json | null
+          report_id: string
+          review_note?: string | null
+          review_status?: string
+          updated_at?: string
+        }
+        Update: {
+          admin_id?: string
+          created_at?: string
+          id?: string
+          overrides?: Json | null
+          report_id?: string
+          review_note?: string | null
+          review_status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_health_reviews_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "ai_health_reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_messages: {
         Row: {
           created_at: string
@@ -246,6 +320,45 @@ export type Database = {
           },
         ]
       }
+      consultation_requests: {
+        Row: {
+          created_at: string
+          goal: string | null
+          id: string
+          message: string | null
+          name: string
+          phone: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          goal?: string | null
+          id?: string
+          message?: string | null
+          name: string
+          phone: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          goal?: string | null
+          id?: string
+          message?: string | null
+          name?: string
+          phone?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       custom_foods: {
         Row: {
           calories: number
@@ -275,6 +388,36 @@ export type Database = {
           id?: string
           name?: string
           protein?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      daily_goal_achievements: {
+        Row: {
+          achieved: boolean
+          created_at: string
+          date: string
+          id: string
+          notified_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          achieved?: boolean
+          created_at?: string
+          date?: string
+          id?: string
+          notified_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          achieved?: boolean
+          created_at?: string
+          date?: string
+          id?: string
+          notified_at?: string | null
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
@@ -804,6 +947,56 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "orders_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payments: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          order_id: string
+          paid_at: string | null
+          payment_key: string | null
+          product_id: string | null
+          provider: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          order_id: string
+          paid_at?: string | null
+          payment_key?: string | null
+          product_id?: string | null
+          provider?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          order_id?: string
+          paid_at?: string | null
+          payment_key?: string | null
+          product_id?: string | null
+          provider?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
