@@ -1,18 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { usePayment } from "@/hooks/usePayment";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { MockPaymentModal } from "@/components/payment/MockPaymentModal";
 import {
   Crown,
   Check,
@@ -24,6 +19,14 @@ import {
   ArrowLeft,
   Sparkles,
 } from "lucide-react";
+
+// 4주 코칭 패키지 상품 정보
+const COACHING_PRODUCT = {
+  id: "coaching_4weeks",
+  name: "4주 코칭 패키지",
+  price: 199000,
+  description: "전문 코치와 함께하는 4주 집중 코칭",
+};
 
 const plans = [
   {
@@ -67,10 +70,28 @@ export default function Premium() {
   const navigate = useNavigate();
   const { profile, refreshProfile } = useAuth();
   const { toast } = useToast();
-  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
-  const [processing, setProcessing] = useState(false);
+  const {
+    loading: paymentLoading,
+    currentPayment,
+    createPaymentIntent,
+    confirmPayment,
+    cancelPayment,
+    checkProductPayment,
+  } = usePayment();
+  
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [hasPaidCoaching, setHasPaidCoaching] = useState(false);
 
   const currentPlan = profile?.subscription_tier || "basic";
+
+  // 코칭 결제 상태 확인
+  useEffect(() => {
+    const checkPayment = async () => {
+      const paid = await checkProductPayment(COACHING_PRODUCT.id);
+      setHasPaidCoaching(paid);
+    };
+    checkPayment();
+  }, [checkProductPayment]);
 
   const handleUpgrade = async () => {
     if (!profile) {
@@ -83,55 +104,54 @@ export default function Premium() {
       return;
     }
 
-    setShowPaymentDialog(true);
+    // Mock 결제 인텐트 생성
+    const intent = await createPaymentIntent({
+      productId: COACHING_PRODUCT.id,
+      productName: COACHING_PRODUCT.name,
+      amount: COACHING_PRODUCT.price,
+    });
+
+    if (intent) {
+      setShowPaymentModal(true);
+    }
   };
 
-  const processPayment = async (method: string) => {
-    setProcessing(true);
-
-    try {
-      // 구독 생성
-      const { error: subscriptionError } = await supabase
-        .from("subscriptions")
-        .insert({
+  const handlePaymentConfirm = async (paymentId: string, success: boolean) => {
+    const result = await confirmPayment(paymentId, success);
+    
+    if (result && success) {
+      // 결제 성공 시 프리미엄 업그레이드
+      try {
+        // 구독 생성
+        await supabase.from("subscriptions").insert({
           user_id: profile!.id,
           payer_id: profile!.id,
           plan_type: "premium",
-          price: 49900,
-          payment_method: method,
+          price: COACHING_PRODUCT.price,
+          payment_method: "mock",
           is_active: true,
-          expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+          expires_at: new Date(Date.now() + 28 * 24 * 60 * 60 * 1000).toISOString(), // 4주
         });
 
-      if (subscriptionError) throw subscriptionError;
+        // 프로필 업데이트
+        await supabase
+          .from("profiles")
+          .update({ subscription_tier: "premium" })
+          .eq("id", profile!.id);
 
-      // 프로필 업데이트
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .update({ subscription_tier: "premium" })
-        .eq("id", profile!.id);
+        await refreshProfile();
+        setHasPaidCoaching(true);
 
-      if (profileError) throw profileError;
-
-      await refreshProfile();
-
-      toast({
-        title: "프리미엄 가입 완료! 🎉",
-        description: "이제 모든 프리미엄 기능을 이용하실 수 있습니다.",
-      });
-
-      setShowPaymentDialog(false);
-      navigate("/coaching");
-    } catch (error) {
-      console.error("Payment error:", error);
-      toast({
-        title: "결제 실패",
-        description: "결제 중 오류가 발생했습니다. 다시 시도해주세요.",
-        variant: "destructive",
-      });
-    } finally {
-      setProcessing(false);
+        toast({
+          title: "결제 완료! 🎉",
+          description: "4주 코칭 패키지가 활성화되었습니다.",
+        });
+      } catch (error) {
+        console.error("Subscription update error:", error);
+      }
     }
+    
+    return result;
   };
 
   return (
@@ -276,55 +296,15 @@ export default function Premium() {
         </div>
       </div>
 
-      {/* Payment Dialog */}
-      <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>결제 수단 선택</DialogTitle>
-            <DialogDescription>
-              프리미엄 구독 (월 49,900원)
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3 py-4">
-            <Button
-              variant="outline"
-              className="w-full h-14 justify-start gap-3"
-              onClick={() => processPayment("kakaopay")}
-              disabled={processing}
-            >
-              <div className="w-10 h-10 bg-yellow-400 rounded-lg flex items-center justify-center">
-                <span className="font-bold text-black">K</span>
-              </div>
-              <span>카카오페이</span>
-            </Button>
-            <Button
-              variant="outline"
-              className="w-full h-14 justify-start gap-3"
-              onClick={() => processPayment("naverpay")}
-              disabled={processing}
-            >
-              <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center">
-                <span className="font-bold text-white">N</span>
-              </div>
-              <span>네이버페이</span>
-            </Button>
-            <Button
-              variant="outline"
-              className="w-full h-14 justify-start gap-3"
-              onClick={() => processPayment("card")}
-              disabled={processing}
-            >
-              <div className="w-10 h-10 bg-gray-200 rounded-lg flex items-center justify-center">
-                <span className="text-gray-600">💳</span>
-              </div>
-              <span>신용/체크카드</span>
-            </Button>
-          </div>
-          <p className="text-xs text-muted-foreground text-center">
-            구독은 언제든지 취소할 수 있습니다
-          </p>
-        </DialogContent>
-      </Dialog>
+      {/* Mock Payment Modal */}
+      <MockPaymentModal
+        open={showPaymentModal}
+        onOpenChange={setShowPaymentModal}
+        paymentIntent={currentPayment}
+        onConfirm={handlePaymentConfirm}
+        onCancel={cancelPayment}
+        loading={paymentLoading}
+      />
     </div>
   );
 }
