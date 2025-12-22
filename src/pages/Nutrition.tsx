@@ -86,6 +86,7 @@ export default function Nutrition() {
     caloriesByMealType,
     add,
     remove,
+    update,
     refetch,
   } = useMealRecordsQuery({ dateStr });
 
@@ -214,13 +215,22 @@ export default function Nutrition() {
   };
 
   // 기록 삭제
-  const handleDelete = async (recordId: string) => {
+  const handleDeleteRecord = async (recordId: string) => {
     const result = await remove(recordId);
     if (result.success) {
       toast({ title: "삭제 완료" });
-      if (isTodaySelected) refreshCalories();
     } else {
       toast({ title: "삭제 실패", variant: "destructive" });
+    }
+  };
+
+  // 기록 수정 (인라인)
+  const handleUpdateRecord = async (recordId: string, foods: MealFood[], totalCalories: number) => {
+    const result = await update(recordId, { foods, totalCalories });
+    if (result.success) {
+      toast({ title: "수정 완료" });
+    } else {
+      toast({ title: "수정 실패", variant: "destructive" });
     }
   };
 
@@ -314,6 +324,8 @@ export default function Nutrition() {
         recordsByMealType={recordsByMealType}
         caloriesByMealType={caloriesByMealType}
         onAddMeal={handleAddMeal}
+        onDeleteRecord={handleDeleteRecord}
+        onUpdateRecord={handleUpdateRecord}
       />
 
       {/* 분석 중 오버레이 */}

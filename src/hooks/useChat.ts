@@ -8,6 +8,8 @@ export interface ChatMessage {
   sender_id: string;
   receiver_id: string;
   message: string;
+  message_type: string;
+  image_url: string | null;
   is_read: boolean;
   created_at: string;
   sender_nickname?: string;
@@ -47,6 +49,25 @@ export function useChat(partnerId?: string) {
     const nickname = data?.nickname || '사용자';
     nicknameCache.current.set(userId, nickname);
     return nickname;
+  }, []);
+
+  // Create signed URL for chat media
+  const getSignedImageUrl = useCallback(async (path: string): Promise<string | null> => {
+    if (!path) return null;
+    if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:')) {
+      return path;
+    }
+    
+    try {
+      const { data, error } = await supabase.storage
+        .from('chat-media')
+        .createSignedUrl(path, 3600);
+      
+      if (error || !data?.signedUrl) return null;
+      return data.signedUrl;
+    } catch {
+      return null;
+    }
   }, []);
 
   // Fetch chat partners for coach (assigned users) or for admin (all users with chats)
@@ -166,10 +187,16 @@ export function useChat(partnerId?: string) {
         });
       }
 
-      setMessages((data || []).map(m => ({
-        ...m,
-        sender_nickname: nicknameCache.current.get(m.sender_id) || '사용자'
-      })));
+      // Resolve image URLs
+      const messagesWithImages = await Promise.all(
+        (data || []).map(async (m) => ({
+          ...m,
+          sender_nickname: nicknameCache.current.get(m.sender_id) || '사용자',
+          image_url: m.image_url ? await getSignedImageUrl(m.image_url) : null,
+        }))
+      );
+
+      setMessages(messagesWithImages);
 
       // Mark messages as read
       if (!isAdmin && data && data.length > 0) {
@@ -190,9 +217,9 @@ export function useChat(partnerId?: string) {
     } finally {
       setLoading(false);
     }
-  }, [user, partnerId, isAdmin, toast]);
+  }, [user, partnerId, isAdmin, toast, getSignedImageUrl]);
 
-  // Send a message
+  // Send a text message
   const sendMessage = async (message: string) => {
     if (!user || !partnerId || !message.trim()) return false;
 
@@ -202,6 +229,7 @@ export function useChat(partnerId?: string) {
         sender_id: user.id,
         receiver_id: partnerId,
         message: message.trim(),
+        message_type: 'text',
       }).select().single();
 
       if (error) throw error;
@@ -210,7 +238,6 @@ export function useChat(partnerId?: string) {
       if (data) {
         const nickname = await getNickname(user.id);
         setMessages(prev => {
-          // Check if message already exists (from realtime)
           if (prev.some(m => m.id === data.id)) return prev;
           return [...prev, {
             ...data,
@@ -225,6 +252,63 @@ export function useChat(partnerId?: string) {
       toast({
         title: '오류',
         description: '메시지 전송에 실패했습니다.',
+        variant: 'destructive',
+      });
+      return false;
+    } finally {
+      setSending(false);
+    }
+  };
+
+  // Send an image message
+  const sendImageMessage = async (file: File) => {
+    if (!user || !partnerId) return false;
+
+    setSending(true);
+    try {
+      // Upload to storage
+      const timestamp = Date.now();
+      const ext = file.name.split('.').pop() || 'jpg';
+      const path = `${user.id}/${timestamp}_${Math.random().toString(36).slice(2)}.${ext}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('chat-media')
+        .upload(path, file, { cacheControl: '3600' });
+
+      if (uploadError) throw uploadError;
+
+      // Insert message
+      const { data, error } = await supabase.from('chat_messages').insert({
+        sender_id: user.id,
+        receiver_id: partnerId,
+        message: '[이미지]',
+        message_type: 'image',
+        image_url: path,
+      }).select().single();
+
+      if (error) throw error;
+      
+      // Get signed URL for display
+      const signedUrl = await getSignedImageUrl(path);
+      
+      if (data) {
+        const nickname = await getNickname(user.id);
+        setMessages(prev => {
+          if (prev.some(m => m.id === data.id)) return prev;
+          return [...prev, {
+            ...data,
+            sender_nickname: nickname,
+            image_url: signedUrl,
+          }];
+        });
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Error sending image:', error);
+      toast({
+        title: '오류',
+        description: '이미지 전송에 실패했습니다.',
         variant: 'destructive',
       });
       return false;
@@ -275,13 +359,16 @@ export function useChat(partnerId?: string) {
 
           if (isRelevant) {
             const nickname = await getNickname(newMessage.sender_id);
+            const imageUrl = newMessage.image_url 
+              ? await getSignedImageUrl(newMessage.image_url) 
+              : null;
 
             setMessages(prev => {
-              // Prevent duplicates
               if (prev.some(m => m.id === newMessage.id)) return prev;
               return [...prev, {
                 ...newMessage,
-                sender_nickname: nickname
+                sender_nickname: nickname,
+                image_url: imageUrl,
               }];
             });
 
@@ -323,7 +410,7 @@ export function useChat(partnerId?: string) {
         channelRef.current = null;
       }
     };
-  }, [user, partnerId, isAdmin, getNickname]);
+  }, [user, partnerId, isAdmin, getNickname, getSignedImageUrl]);
 
   // Initial fetch
   useEffect(() => {
@@ -343,6 +430,7 @@ export function useChat(partnerId?: string) {
     loading,
     sending,
     sendMessage,
+    sendImageMessage,
     chatPartners,
     getAssignedCoach,
     refreshMessages: fetchMessages,
