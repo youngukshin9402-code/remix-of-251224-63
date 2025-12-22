@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { format, parseISO } from "date-fns";
 import { ko } from "date-fns/locale";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCoaching } from "@/hooks/useCoaching";
+import { usePayment } from "@/hooks/usePayment";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +18,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { MockPaymentModal } from "@/components/payment/MockPaymentModal";
 import {
   ArrowLeft,
   Calendar as CalendarIcon,
@@ -27,11 +29,24 @@ import {
   CheckCircle2,
   XCircle,
   Loader2,
+  CreditCard,
+  Package,
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+
+// 4주 코칭 패키지 상품 정보
+const COACHING_PRODUCT = {
+  id: "coaching_4weeks",
+  name: "4주 코칭 패키지",
+  price: 199000,
+  description: "전문 코치와 함께하는 4주 집중 코칭",
+};
 
 export default function Coaching() {
   const navigate = useNavigate();
-  const { profile } = useAuth();
+  const { profile, refreshProfile } = useAuth();
+  const { toast } = useToast();
   const {
     availableSlots,
     mySessions,
@@ -42,14 +57,34 @@ export default function Coaching() {
     getUpcomingSession,
   } = useCoaching();
 
+  const {
+    loading: paymentLoading,
+    currentPayment,
+    createPaymentIntent,
+    confirmPayment,
+    cancelPayment,
+    checkProductPayment,
+  } = usePayment();
+
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [selectedSlot, setSelectedSlot] = useState<any>(null);
   const [showBookingDialog, setShowBookingDialog] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState<string | null>(null);
   const [booking, setBooking] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [hasPaidCoaching, setHasPaidCoaching] = useState(false);
 
   const isPremium = profile?.subscription_tier === "premium";
   const upcomingSession = getUpcomingSession();
+
+  // 코칭 결제 상태 확인
+  useEffect(() => {
+    const checkPayment = async () => {
+      const paid = await checkProductPayment(COACHING_PRODUCT.id);
+      setHasPaidCoaching(paid);
+    };
+    checkPayment();
+  }, [checkProductPayment]);
 
   // 선택된 날짜의 슬롯 필터링
   const slotsForDate = selectedDate
@@ -104,18 +139,158 @@ export default function Coaching() {
     }
   };
 
-  if (!isPremium) {
+  // 결제 처리
+  const handlePayment = async () => {
+    const intent = await createPaymentIntent({
+      productId: COACHING_PRODUCT.id,
+      productName: COACHING_PRODUCT.name,
+      amount: COACHING_PRODUCT.price,
+    });
+
+    if (intent) {
+      setShowPaymentModal(true);
+    }
+  };
+
+  const handlePaymentConfirm = async (paymentId: string, success: boolean) => {
+    const result = await confirmPayment(paymentId, success);
+    
+    if (result && success) {
+      // 결제 성공 시 프리미엄 업그레이드
+      try {
+        await supabase.from("subscriptions").insert({
+          user_id: profile!.id,
+          payer_id: profile!.id,
+          plan_type: "premium",
+          price: COACHING_PRODUCT.price,
+          payment_method: "mock",
+          is_active: true,
+          expires_at: new Date(Date.now() + 28 * 24 * 60 * 60 * 1000).toISOString(),
+        });
+
+        await supabase
+          .from("profiles")
+          .update({ subscription_tier: "premium" })
+          .eq("id", profile!.id);
+
+        await refreshProfile();
+        setHasPaidCoaching(true);
+
+        toast({
+          title: "결제 완료! 🎉",
+          description: "4주 코칭 패키지가 활성화되었습니다.",
+        });
+      } catch (error) {
+        console.error("Subscription update error:", error);
+      }
+    }
+    
+    return result;
+  };
+
+  if (!isPremium && !hasPaidCoaching) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6">
-        <Crown className="h-16 w-16 text-amber-500 mb-4" />
-        <h1 className="text-2xl font-bold mb-2">프리미엄 전용 기능</h1>
-        <p className="text-muted-foreground text-center mb-6">
-          1:1 코칭은 프리미엄 회원만 이용할 수 있습니다
-        </p>
-        <Button onClick={() => navigate("/premium")} size="lg">
-          <Crown className="mr-2 h-5 w-5" />
-          프리미엄 가입하기
-        </Button>
+      <div className="min-h-screen bg-background pb-24">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate(-1)}
+              className="text-white hover:bg-white/20"
+            >
+              <ArrowLeft className="h-6 w-6" />
+            </Button>
+            <h1 className="text-2xl font-bold">1:1 코칭</h1>
+          </div>
+          <p className="text-white/90">전문 코치와 함께 건강을 관리하세요</p>
+        </div>
+
+        <div className="p-4 space-y-4">
+          {/* 무료 상담 신청 */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <User className="h-5 w-5" />
+                무료 상담 신청하기
+              </CardTitle>
+              <CardDescription>
+                전문 코치에게 무료로 상담받고 코칭 프로그램을 알아보세요
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button 
+                className="w-full" 
+                variant="outline"
+                onClick={() => navigate("/consultation")}
+              >
+                무료 상담 신청
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* 4주 코칭 패키지 결제 */}
+          <Card className="border-2 border-primary">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <Package className="h-5 w-5 text-primary" />
+                  {COACHING_PRODUCT.name}
+                </CardTitle>
+                <Badge className="bg-primary">추천</Badge>
+              </div>
+              <CardDescription>
+                {COACHING_PRODUCT.description}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="text-3xl font-bold text-primary">
+                {COACHING_PRODUCT.price.toLocaleString()}원
+              </div>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  주 1회 영상 코칭 (총 4회)
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  매일 1:1 채팅 피드백
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  맞춤형 미션 설정
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  식단/운동 전문 코칭
+                </li>
+              </ul>
+              <Button 
+                className="w-full h-14 text-lg" 
+                onClick={handlePayment}
+                disabled={paymentLoading}
+              >
+                {paymentLoading ? (
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                ) : (
+                  <CreditCard className="mr-2 h-5 w-5" />
+                )}
+                결제하기
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Mock Payment Modal */}
+        <MockPaymentModal
+          open={showPaymentModal}
+          onOpenChange={setShowPaymentModal}
+          paymentIntent={currentPayment}
+          onConfirm={handlePaymentConfirm}
+          onCancel={cancelPayment}
+          loading={paymentLoading}
+        />
       </div>
     );
   }
@@ -386,6 +561,16 @@ export default function Coaching() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Mock Payment Modal for Premium Users */}
+      <MockPaymentModal
+        open={showPaymentModal}
+        onOpenChange={setShowPaymentModal}
+        paymentIntent={currentPayment}
+        onConfirm={handlePaymentConfirm}
+        onCancel={cancelPayment}
+        loading={paymentLoading}
+      />
     </div>
   );
 }
