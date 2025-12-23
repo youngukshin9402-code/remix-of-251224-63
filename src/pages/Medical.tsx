@@ -1034,6 +1034,14 @@ export default function Medical() {
             </span>
           </div>
 
+          {/* 코치 코멘트 - 상단으로 이동 */}
+          <div className="mb-4 p-4 rounded-xl bg-primary/5 border border-primary/20">
+            <p className="text-sm font-medium text-primary mb-1">💬 코치 코멘트</p>
+            <p className="text-foreground">
+              {currentRecord.coach_comment || "코치 코멘트: 없음"}
+            </p>
+          </div>
+
           {healthAge && (
             <div className="text-center py-6 bg-emerald-50 rounded-2xl mb-4">
               <p className="text-muted-foreground mb-2">건강 나이</p>
@@ -1046,11 +1054,11 @@ export default function Medical() {
           )}
 
           <div className="space-y-4">
-            {normalItems.length > 0 && (
+            {dangerItems.length > 0 && (
               <div>
-                <h4 className="font-medium text-emerald-700 mb-2">정상 ({normalItems.length}개)</h4>
+                <h4 className="font-medium text-red-700 mb-2">관리 필요 ({dangerItems.length}개)</h4>
                 <div className="space-y-2">
-                  {normalItems.map((item, idx) => (
+                  {dangerItems.map((item, idx) => (
                     <HealthItemCard key={idx} item={item} />
                   ))}
                 </div>
@@ -1068,29 +1076,22 @@ export default function Medical() {
               </div>
             )}
 
-            {dangerItems.length > 0 && (
+            {normalItems.length > 0 && (
               <div>
-                <h4 className="font-medium text-red-700 mb-2">관리 필요 ({dangerItems.length}개)</h4>
+                <h4 className="font-medium text-emerald-700 mb-2">정상 ({normalItems.length}개)</h4>
                 <div className="space-y-2">
-                  {dangerItems.map((item, idx) => (
+                  {normalItems.map((item, idx) => (
                     <HealthItemCard key={idx} item={item} />
                   ))}
                 </div>
               </div>
             )}
           </div>
-
-          {currentRecord.coach_comment && (
-            <div className="mt-4 p-4 rounded-xl bg-muted">
-              <p className="text-sm text-muted-foreground mb-1">💬 코치 코멘트</p>
-              <p className="text-foreground">{currentRecord.coach_comment}</p>
-            </div>
-          )}
         </div>
 
         <Button size="lg" className="w-full h-12" onClick={() => setShowShareDialog(true)}>
           <Share2 className="w-5 h-5 mr-2" />
-          가족에게 공유하기
+          이미지로 저장하기
         </Button>
 
         <Button variant="outline" size="lg" className="w-full h-12" onClick={openUploadDialog} disabled={isUploading}>
@@ -1318,30 +1319,23 @@ export default function Medical() {
         </DialogContent>
       </Dialog>
 
-      {/* 공유 다이얼로그 */}
+      {/* 이미지 저장 다이얼로그 */}
       <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>가족에게 공유하기</DialogTitle>
+            <DialogTitle>건강검진 결과 저장</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 mt-4">
+            <p className="text-sm text-muted-foreground">
+              건강검진 결과를 이미지로 저장하여 가족에게 공유할 수 있습니다.
+            </p>
             <Button
-              variant="outline"
               size="lg"
-              className="w-full h-14 justify-start bg-[#FEE500] hover:bg-[#FDD835] text-[#3C1E1E] border-none"
-              onClick={handleShareToKakao}
-            >
-              <MessageCircle className="w-5 h-5 mr-3" />
-              카카오톡으로 공유
-            </Button>
-            <Button
-              variant="outline"
-              size="lg"
-              className="w-full h-14 justify-start"
+              className="w-full h-14"
               onClick={handleShareCopy}
             >
               <Share2 className="w-5 h-5 mr-3" />
-              텍스트 복사하기
+              이미지로 저장하기
             </Button>
           </div>
         </DialogContent>

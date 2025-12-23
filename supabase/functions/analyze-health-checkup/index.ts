@@ -72,35 +72,38 @@ serve(async (req) => {
       throw new Error("No valid images to analyze");
     }
 
-    // Prepare messages for AI analysis
+    // Prepare messages for AI analysis - 간소화된 프롬프트
     const userContent: any[] = [
       {
         type: "text",
-        text: `당신은 건강검진 결과를 분석하는 전문 AI입니다. 
-다음 건강검진 결과 이미지를 분석해서 JSON 형식으로 응답해주세요.
+        text: `당신은 건강검진 결과를 쉬운 말로 설명해주는 AI입니다.
 
-응답 형식:
+다음 건강검진 결과 이미지를 분석해서 **할머니, 할아버지도 이해할 수 있게 쉽게** 설명해주세요.
+
+응답 형식 (JSON):
 {
-  "health_age": 숫자 (건강 나이 추정),
-  "summary": "전반적인 건강 상태 요약 (2-3문장)",
+  "health_age": 숫자 (건강 나이 추정, 모르면 null),
+  "summary": "2~3줄로 짧게 핵심만 요약. 예: '혈압이 조금 높아요. 짠 음식을 줄이시면 좋겠어요.'",
   "items": [
     {
-      "name": "검사 항목명",
+      "name": "검사 항목 (예: 혈압)",
       "value": "측정값",
       "unit": "단위",
       "status": "normal" | "warning" | "danger",
-      "description": "해당 수치에 대한 설명"
+      "description": "한 줄로 쉽게 설명 (예: '정상이에요. 잘 관리하고 계세요!')"
     }
   ],
-  "health_tags": ["high_bp", "diabetes", "high_cholesterol"] 등 해당되는 태그 배열,
-  "recommendations": ["권장 사항 1", "권장 사항 2"]
+  "health_tags": ["high_bp", "diabetes" 등 해당되는 것만],
+  "recommendations": ["1줄짜리 생활 조언 2~3개"]
 }
 
-건강 나이는 검진 결과를 바탕으로 실제 나이 대비 신체 기능이 어느 정도인지 추정해주세요.
-status는 정상 범위면 "normal", 주의 필요하면 "warning", 관리가 필요하면 "danger"로 표시해주세요.
-health_tags는 해당되는 항목만 배열에 포함해주세요: high_bp, low_bp, diabetes, prediabetes, high_cholesterol, high_triglycerides, anemia, liver_issue, kidney_issue, obesity, underweight
+중요 규칙:
+1. items는 **이상이 있는 항목 우선**, 최대 8개만
+2. description은 **한 줄**, 어려운 의학 용어 금지
+3. summary는 **2~3줄** 이내, 가장 중요한 것만
+4. recommendations는 **실천 가능한 생활 조언** 2~3개
 
-이미지에서 읽을 수 있는 모든 수치를 분석해주세요.`,
+만약 건강검진 결과지가 아니면 빈 items와 "건강검진 결과 이미지가 아닙니다"라고 summary에 적어주세요.`,
       },
     ];
 
@@ -159,7 +162,6 @@ health_tags는 해당되는 항목만 배열에 포함해주세요: high_bp, low
         parsedData = JSON.parse(jsonMatch[0]);
         
         // Check if the AI indicates this is not a health checkup image
-        // Common indicators: no items, null health_age, summary mentions it's not a health checkup
         const isNotHealthCheckup = 
           (parsedData.items && parsedData.items.length === 0 && parsedData.health_age === null) ||
           (parsedData.summary && (
@@ -173,7 +175,6 @@ health_tags는 해당되는 항목만 배열에 포함해주세요: high_bp, low
           isInvalidImage = true;
         }
       } else {
-        // No JSON found - likely AI explained that it's not a health checkup image
         isInvalidImage = true;
         console.log("No JSON found in AI response - likely not a health checkup image");
       }
@@ -186,7 +187,6 @@ health_tags는 해당되는 항목만 배열에 포함해주세요: high_bp, low
     if (isInvalidImage) {
       console.log("Invalid health checkup image detected");
       
-      // Update record status to rejected with explanation
       await supabase
         .from("health_records")
         .update({ 
@@ -217,7 +217,6 @@ health_tags는 해당되는 항목만 배열에 포함해주세요: high_bp, low
 
     if (recordFetchError || !recordData) {
       console.error("Failed to fetch health record:", recordFetchError);
-      // Record might have been deleted during analysis - just return success without updating
       return new Response(
         JSON.stringify({ 
           success: false, 
@@ -260,7 +259,6 @@ health_tags는 해당되는 항목만 배열에 포함해주세요: high_bp, low
 
     if (reportError) {
       console.error("Failed to create ai_health_report:", reportError);
-      // Non-fatal, continue anyway
     }
 
     console.log("Health checkup analysis completed successfully");
