@@ -28,7 +28,7 @@ const MEAL_TYPE_LABELS: Record<MealType, string> = {
   snack: "간식",
 };
 
-const PORTION_OPTIONS = ["소", "중", "대", "0.5인분", "1인분", "1.5인분", "2인분"];
+const PORTION_OPTIONS = ["0.5인분", "1인분", "1.5인분", "2인분"];
 
 interface AnalyzedFood {
   name: string;
@@ -77,7 +77,7 @@ export function FoodAnalysisSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="h-[90vh] rounded-t-3xl overflow-y-auto">
+      <SheetContent side="bottom" className="h-[90vh] rounded-t-3xl w-full max-w-[420px] mx-auto inset-x-0 overflow-y-auto">
         <SheetHeader className="pb-4">
           <SheetTitle>음식 정보 확인</SheetTitle>
         </SheetHeader>
@@ -130,7 +130,7 @@ export function FoodAnalysisSheet({
                   </Button>
                 </div>
 
-                {/* 양 선택 */}
+                {/* 양 선택 - 인분만 */}
                 <div className="mb-3">
                   <label className="text-xs text-muted-foreground">양</label>
                   <div className="flex flex-wrap gap-1 mt-1">
@@ -148,44 +148,14 @@ export function FoodAnalysisSheet({
                   </div>
                 </div>
 
-                {/* 영양 정보 */}
-                <div className="grid grid-cols-4 gap-2">
-                  <div>
-                    <label className="text-xs text-muted-foreground">kcal</label>
-                    <Input
-                      type="number"
-                      value={food.calories}
-                      onChange={(e) => handleFoodChange(index, "calories", Number(e.target.value))}
-                      className="h-8 text-center mt-1"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-muted-foreground">탄</label>
-                    <Input
-                      type="number"
-                      value={food.carbs}
-                      onChange={(e) => handleFoodChange(index, "carbs", Number(e.target.value))}
-                      className="h-8 text-center mt-1"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-muted-foreground">단</label>
-                    <Input
-                      type="number"
-                      value={food.protein}
-                      onChange={(e) => handleFoodChange(index, "protein", Number(e.target.value))}
-                      className="h-8 text-center mt-1"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-muted-foreground">지</label>
-                    <Input
-                      type="number"
-                      value={food.fat}
-                      onChange={(e) => handleFoodChange(index, "fat", Number(e.target.value))}
-                      className="h-8 text-center mt-1"
-                    />
-                  </div>
+                {/* g 입력 */}
+                <div className="mb-3">
+                  <label className="text-xs text-muted-foreground">중량 (g)</label>
+                  <Input
+                    type="number"
+                    placeholder="예: 300"
+                    className="h-8 mt-1"
+                  />
                 </div>
               </div>
             ))}

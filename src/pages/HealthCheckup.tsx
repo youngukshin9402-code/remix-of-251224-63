@@ -7,22 +7,23 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from "@/hooks/use-toast";
 import {
   ArrowLeft,
-  Plus,
   Trash2,
   AlertTriangle,
   CheckCircle,
   AlertCircle,
   Heart,
-  Activity,
-  Droplets,
   FileText,
   Camera,
   Loader2,
   Upload,
+  Download,
 } from "lucide-react";
 import { useHealthRecords, HealthRecord, ParsedHealthData } from "@/hooks/useHealthRecords";
 import { AIHealthReportCard } from "@/components/health/AIHealthReportCard";
+import HealthShareCard from "@/components/health/HealthShareCard";
 import { format } from "date-fns";
+import html2canvas from "html2canvas";
+import { supabase } from "@/integrations/supabase/client";
 
 const StatusBadge = ({ status }: { status: 'normal' | 'warning' | 'danger' | null }) => {
   if (!status) return null;
@@ -46,6 +47,7 @@ const StatusBadge = ({ status }: { status: 'normal' | 'warning' | 'danger' | nul
 export default function HealthCheckup() {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const shareCardRef = useRef<HTMLDivElement>(null);
   const {
     records,
     currentRecord,
@@ -58,6 +60,9 @@ export default function HealthCheckup() {
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [examDate, setExamDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [showShareCard, setShowShareCard] = useState(false);
+  const [shareImageUrls, setShareImageUrls] = useState<string[]>([]);
+  const [isSavingImage, setIsSavingImage] = useState(false);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -83,6 +88,59 @@ export default function HealthCheckup() {
 
   const handleDelete = async (recordId: string) => {
     await deleteRecord(recordId);
+  };
+
+  // 이미지로 저장하기
+  const handleSaveAsImage = async (record: HealthRecord) => {
+    if (!record) return;
+    
+    setIsSavingImage(true);
+    try {
+      // 이미지 URL 생성
+      if (record.raw_image_urls && record.raw_image_urls.length > 0) {
+        const urls = await Promise.all(
+          record.raw_image_urls.map(async (path) => {
+            const { data } = await supabase.storage
+              .from('health-checkups')
+              .createSignedUrl(path, 3600);
+            return data?.signedUrl || '';
+          })
+        );
+        setShareImageUrls(urls.filter(Boolean));
+      }
+      
+      setShowShareCard(true);
+      
+      // 약간의 딜레이 후 이미지 캡처
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      if (shareCardRef.current) {
+        const canvas = await html2canvas(shareCardRef.current, {
+          scale: 2,
+          backgroundColor: '#ffffff',
+          useCORS: true,
+          allowTaint: true,
+        });
+        
+        const link = document.createElement('a');
+        link.download = `건강검진_${format(new Date(), 'yyyyMMdd')}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+        
+        toast({ title: "이미지가 저장되었습니다" });
+      }
+    } catch (error) {
+      console.error('Image save error:', error);
+      toast({ title: "이미지 저장 실패", variant: "destructive" });
+    } finally {
+      setIsSavingImage(false);
+      setShowShareCard(false);
+    }
+  };
+
+  // AI 분석 또는 코치 코멘트가 있으면 이미지 저장 버튼 표시
+  const canSaveAsImage = (record: HealthRecord) => {
+    return record.parsed_data || record.coach_comment;
   };
 
   // Count statuses from parsed_data
@@ -237,6 +295,23 @@ export default function HealthCheckup() {
                 </ul>
               </div>
             )}
+
+            {/* 이미지로 저장하기 버튼 - AI 분석 또는 코치 코멘트가 있으면 표시 */}
+            {canSaveAsImage(latestRecord) && (
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => handleSaveAsImage(latestRecord)}
+                disabled={isSavingImage}
+              >
+                {isSavingImage ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4 mr-2" />
+                )}
+                이미지로 저장하기
+              </Button>
+            )}
           </div>
         ) : latestRecord && latestRecord.status !== 'completed' ? (
           <div className="bg-card rounded-3xl border border-border p-8 text-center">
@@ -248,9 +323,9 @@ export default function HealthCheckup() {
           <div className="bg-card rounded-3xl border border-border p-8 text-center">
             <FileText className="w-12 h-12 mx-auto mb-3 text-muted-foreground/30" />
             <p className="text-muted-foreground">건강검진 기록이 없습니다</p>
-            <Button className="mt-4" onClick={() => fileInputRef.current?.click()}>
-              <Camera className="w-4 h-4 mr-1" />
-              검진 결과 사진 업로드
+          <Button className="mt-4" onClick={() => fileInputRef.current?.click()}>
+            <Camera className="w-4 h-4 mr-2" />
+            검진 결과 사진 업로드
             </Button>
           </div>
         )}
@@ -296,13 +371,28 @@ export default function HealthCheckup() {
                       </div>
                     </div>
                     <div className="flex gap-1">
+                      {/* 이미지로 저장 버튼 */}
+                      {canSaveAsImage(record) && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleSaveAsImage(record)}
+                          disabled={isSavingImage}
+                        >
+                          {isSavingImage ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Download className="w-4 h-4 text-primary" />
+                          )}
+                        </Button>
+                      )}
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button variant="ghost" size="icon">
                             <Trash2 className="w-4 h-4 text-destructive" />
                           </Button>
                         </AlertDialogTrigger>
-                        <AlertDialogContent>
+                        <AlertDialogContent className="w-[90vw] max-w-[340px] mx-auto">
                           <AlertDialogHeader>
                             <AlertDialogTitle>기록을 삭제하시겠습니까?</AlertDialogTitle>
                             <AlertDialogDescription>
@@ -363,6 +453,17 @@ export default function HealthCheckup() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Hidden Share Card for Image Export */}
+      {showShareCard && latestRecord && (
+        <div className="fixed left-[-9999px] top-0">
+          <HealthShareCard
+            ref={shareCardRef}
+            record={latestRecord}
+            imageUrls={shareImageUrls}
+          />
+        </div>
+      )}
     </div>
   );
 }
