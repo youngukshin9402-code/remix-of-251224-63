@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -44,7 +44,7 @@ export function useHealthRecords() {
   const [isUploading, setIsUploading] = useState(false);
 
   // Fetch all records for the user
-  const fetchRecords = async () => {
+  const fetchRecords = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -74,9 +74,9 @@ export function useHealthRecords() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user]);
 
-  // Subscribe to realtime updates
+  // Subscribe to realtime updates - 함수형 업데이트로 stale closure 방지
   useEffect(() => {
     if (!user) return;
 
@@ -112,15 +112,16 @@ export function useHealthRecords() {
             setRecords((prev) =>
               prev.map((r) => (r.id === updatedRecord.id ? updatedRecord : r))
             );
-            if (currentRecord?.id === updatedRecord.id) {
-              setCurrentRecord(updatedRecord);
-            }
+            // 함수형 업데이트로 stale closure 문제 해결
+            setCurrentRecord((prev) => 
+              prev?.id === updatedRecord.id ? updatedRecord : prev
+            );
           } else if (payload.eventType === "DELETE") {
             const deletedId = payload.old.id;
             setRecords((prev) => prev.filter((r) => r.id !== deletedId));
-            if (currentRecord?.id === deletedId) {
-              setCurrentRecord(null);
-            }
+            setCurrentRecord((prev) => 
+              prev?.id === deletedId ? null : prev
+            );
           }
         }
       )
@@ -129,7 +130,7 @@ export function useHealthRecords() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [user, fetchRecords]);
 
   // Upload images and create a new health record
   const uploadHealthCheckup = async (files: File[], examDate?: string) => {
@@ -177,10 +178,19 @@ export function useHealthRecords() {
         throw new Error("기록 생성에 실패했습니다.");
       }
 
+      // 즉시 로컬 상태에 새 레코드 추가 (optimistic update)
+      const newRecord: HealthRecord = {
+        ...record,
+        status: record.status as HealthRecordStatus,
+        parsed_data: null,
+      };
+      setRecords((prev) => [newRecord, ...prev]);
+      setCurrentRecord(newRecord);
+
       toast.success("업로드 완료! AI가 분석을 시작합니다.");
 
-      // Trigger AI analysis
-      const { data: fnData, error: fnError } = await supabase.functions.invoke(
+      // Trigger AI analysis (비동기로 진행, 결과는 realtime으로 받음)
+      supabase.functions.invoke(
         "analyze-health-checkup",
         {
           body: {
@@ -188,30 +198,30 @@ export function useHealthRecords() {
             imageUrls: imageUrls,
           },
         }
-      );
-
-      if (fnError) {
-        console.error("Function error:", fnError);
-        
-        // Check if it's an invalid image error
-        try {
-          const errorBody = typeof fnError === 'object' && fnError.message ? JSON.parse(fnError.message) : null;
-          if (errorBody?.error === "invalid_image") {
-            toast.error("업로드하신 이미지가 건강검진 결과지가 아닙니다. 올바른 이미지를 업로드해주세요.", {
-              duration: 5000
-            });
-          } else {
+      ).then(({ data: fnData, error: fnError }) => {
+        if (fnError) {
+          console.error("Function error:", fnError);
+          
+          try {
+            const errorBody = typeof fnError === 'object' && fnError.message ? JSON.parse(fnError.message) : null;
+            if (errorBody?.error === "invalid_image") {
+              toast.error("업로드하신 이미지가 건강검진 결과지가 아닙니다. 올바른 이미지를 업로드해주세요.", {
+                duration: 5000
+              });
+            } else {
+              toast.error("AI 분석 요청에 실패했습니다. 잠시 후 다시 시도해주세요.");
+            }
+          } catch {
             toast.error("AI 분석 요청에 실패했습니다. 잠시 후 다시 시도해주세요.");
           }
-        } catch {
-          toast.error("AI 분석 요청에 실패했습니다. 잠시 후 다시 시도해주세요.");
+        } else if (fnData && fnData.error === "invalid_image") {
+          toast.error(fnData.message || "업로드하신 이미지가 건강검진 결과지가 아닙니다. 올바른 이미지를 업로드해주세요.", {
+            duration: 5000
+          });
+        } else if (fnData?.success) {
+          toast.success("AI 분석이 완료되었습니다!");
         }
-      } else if (fnData && fnData.error === "invalid_image") {
-        // Handle invalid image response
-        toast.error(fnData.message || "업로드하신 이미지가 건강검진 결과지가 아닙니다. 올바른 이미지를 업로드해주세요.", {
-          duration: 5000
-        });
-      }
+      });
 
       return record;
     } catch (error) {
@@ -244,7 +254,6 @@ export function useHealthRecords() {
         
         if (storageError) {
           console.error("Storage delete error:", storageError);
-          // Continue with record deletion even if storage deletion fails
         }
       }
 
@@ -284,9 +293,9 @@ export function useHealthRecords() {
       setRecords((prev) =>
         prev.map((r) => (r.id === recordId ? { ...r, exam_date: examDate } : r))
       );
-      if (currentRecord?.id === recordId) {
-        setCurrentRecord({ ...currentRecord, exam_date: examDate });
-      }
+      setCurrentRecord((prev) => 
+        prev?.id === recordId ? { ...prev, exam_date: examDate } : prev
+      );
 
       toast.success("검진일이 수정되었습니다.");
       return true;
