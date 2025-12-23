@@ -62,9 +62,9 @@ export function QuickAddPanel({ mealType, onAddFood, onAddFoods }: QuickAddPanel
   };
 
   return (
-    <div className="space-y-4">
-      <Tabs defaultValue="recent" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+    <div className="space-y-4 h-full overflow-hidden flex flex-col">
+      <Tabs defaultValue="recent" className="w-full flex-1 flex flex-col overflow-hidden">
+        <TabsList className="grid w-full grid-cols-2 flex-shrink-0">
           <TabsTrigger value="recent" className="text-xs gap-1">
             <Clock className="w-3 h-3" />
             최근
@@ -73,15 +73,11 @@ export function QuickAddPanel({ mealType, onAddFood, onAddFoods }: QuickAddPanel
             <Star className="w-3 h-3" />
             즐겨찾기
           </TabsTrigger>
-          <TabsTrigger value="sets" className="text-xs gap-1">
-            <Package className="w-3 h-3" />
-            세트
-          </TabsTrigger>
         </TabsList>
 
         {/* 최근 기록 */}
-        <TabsContent value="recent" className="mt-3">
-          <ScrollArea className="h-[200px]">
+        <TabsContent value="recent" className="mt-3 flex-1 overflow-hidden">
+          <ScrollArea className="h-[300px]">
             {recentLoading ? (
               <div className="flex justify-center py-8">
                 <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
@@ -91,7 +87,7 @@ export function QuickAddPanel({ mealType, onAddFood, onAddFoods }: QuickAddPanel
                 최근 기록이 없어요
               </p>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-2 pr-2">
                 {recentFoods.map((food, idx) => (
                   <div
                     key={`${food.name}-${idx}`}
@@ -136,8 +132,8 @@ export function QuickAddPanel({ mealType, onAddFood, onAddFoods }: QuickAddPanel
         </TabsContent>
 
         {/* 즐겨찾기 */}
-        <TabsContent value="favorite" className="mt-3">
-          <ScrollArea className="h-[200px]">
+        <TabsContent value="favorite" className="mt-3 flex-1 overflow-hidden">
+          <ScrollArea className="h-[300px]">
             {favLoading ? (
               <div className="flex justify-center py-8">
                 <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
@@ -151,7 +147,7 @@ export function QuickAddPanel({ mealType, onAddFood, onAddFoods }: QuickAddPanel
                 </p>
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-2 pr-2">
                 {favoriteFoods.map((food) => (
                   <div
                     key={food.id}
@@ -190,6 +186,10 @@ export function QuickAddPanel({ mealType, onAddFood, onAddFoods }: QuickAddPanel
             )}
           </ScrollArea>
         </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
 
         {/* 식사 세트 */}
         <TabsContent value="sets" className="mt-3">

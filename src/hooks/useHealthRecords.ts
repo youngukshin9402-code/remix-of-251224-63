@@ -270,7 +270,7 @@ export function useHealthRecords() {
     }
   };
 
-  // Delete a health record - optimistic update 적용
+  // Delete a health record - optimistic update 적용 + AI 분석/코치 코멘트도 함께 삭제
   const deleteRecord = async (recordId: string) => {
     if (!user) {
       toast.error("로그인이 필요합니다.");
@@ -295,7 +295,17 @@ export function useHealthRecords() {
       // Find the record to get image URLs
       const record = previousRecords.find((r) => r.id === recordId);
       
-      // Delete images from storage if exists
+      // 1. AI health reports 삭제 (해당 레코드와 연결된 것들)
+      const { error: reportDeleteError } = await supabase
+        .from("ai_health_reports")
+        .delete()
+        .eq("source_record_id", recordId);
+      
+      if (reportDeleteError) {
+        console.error("Error deleting AI reports:", reportDeleteError);
+      }
+
+      // 2. Delete images from storage if exists
       if (record?.raw_image_urls && record.raw_image_urls.length > 0) {
         const { error: storageError } = await supabase.storage
           .from("health-checkups")
@@ -306,7 +316,7 @@ export function useHealthRecords() {
         }
       }
 
-      // Delete the record
+      // 3. Delete the record
       const { error } = await supabase
         .from("health_records")
         .delete()
