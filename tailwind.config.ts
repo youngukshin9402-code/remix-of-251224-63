@@ -207,7 +207,6 @@ export default {
   			'scale-in': 'scale-in 0.4s ease-out forwards'
   		},
   		fontFamily: {
-  			cute: ['Jua', 'sans-serif'],
   			sans: [
   				'Lato',
   				'ui-sans-serif',
