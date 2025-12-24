@@ -349,6 +349,9 @@ function InBodySection() {
         toast.error("삭제 실패: " + (result.error.message || "네트워크 오류"));
       } else {
         toast.success("삭제되었습니다");
+        // 인바디 기록 삭제 시 건강나이 결과도 함께 초기화 (홈 탭과 실시간 동기화)
+        clearHealthAge();
+        setHealthAgeResult(null);
       }
     } catch (err: any) {
       toast.error("오류 발생: " + (err?.message || "알 수 없는 오류"));
