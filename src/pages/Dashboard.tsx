@@ -120,7 +120,7 @@ export default function Dashboard() {
                 )}
               </div>
               <p className="text-lg font-bold tabular-nums">
-                {goalsReady && !mealsLoading ? todayCalories.toLocaleString() : "…"}
+                {goalsReady && !mealsLoading ? `${todayCalories.toLocaleString()} kcal` : "…"}
               </p>
               <p className="text-[10px] text-muted-foreground">
                 목표 {goalsReady ? calorieGoal.toLocaleString() : "…"} kcal
@@ -176,7 +176,7 @@ export default function Dashboard() {
                 </div>
                 <span className="text-xs text-muted-foreground whitespace-nowrap truncate">걸음수</span>
               </div>
-              <p className="text-lg font-bold">0</p>
+              <p className="text-lg font-bold">0 걸음</p>
               <p className="text-[10px] text-muted-foreground">연동 준비중</p>
               <div className="mt-1.5 h-1 bg-muted rounded-full overflow-hidden">
                 <div className="h-full bg-health-green transition-all" style={{ width: '0%' }} />
