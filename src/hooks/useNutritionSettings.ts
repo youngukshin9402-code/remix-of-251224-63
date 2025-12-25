@@ -17,6 +17,8 @@ export interface NutritionSettingsData {
   currentWeight: number | null;
   goalWeight: number | null;
   conditions: string[] | null;
+  gender: string | null;
+  activityLevel: string | null;
   calorieGoal: number;
   carbGoalG: number;
   proteinGoalG: number;
@@ -30,6 +32,8 @@ export interface NutritionSettingsInput {
   currentWeight?: number;
   goalWeight?: number;
   conditions?: string[];
+  gender?: string;
+  activityLevel?: string;
 }
 
 const DEFAULT_GOALS: NutritionGoals = {
@@ -91,6 +95,8 @@ export function useNutritionSettings() {
           currentWeight: data.current_weight ? Number(data.current_weight) : null,
           goalWeight: data.goal_weight ? Number(data.goal_weight) : null,
           conditions: (data as any).conditions || null,
+          gender: (data as any).gender || null,
+          activityLevel: (data as any).activity_level || null,
           calorieGoal: data.calorie_goal || DEFAULT_GOALS.calorieGoal,
           carbGoalG: data.carb_goal_g || DEFAULT_GOALS.carbGoalG,
           proteinGoalG: data.protein_goal_g || DEFAULT_GOALS.proteinGoalG,
@@ -148,6 +154,12 @@ export function useNutritionSettings() {
       if (input.conditions !== undefined) {
         upsertData.conditions = input.conditions;
       }
+      if (input.gender !== undefined) {
+        upsertData.gender = input.gender;
+      }
+      if (input.activityLevel !== undefined) {
+        upsertData.activity_level = input.activityLevel;
+      }
 
       const { error: upsertError } = await supabase
         .from('nutrition_settings')
@@ -164,6 +176,8 @@ export function useNutritionSettings() {
         currentWeight: input.currentWeight || null,
         goalWeight: input.goalWeight || null,
         conditions: input.conditions ?? settings?.conditions ?? null,
+        gender: input.gender ?? settings?.gender ?? null,
+        activityLevel: input.activityLevel ?? settings?.activityLevel ?? null,
         ...goals,
         updatedAt: new Date().toISOString(),
       };

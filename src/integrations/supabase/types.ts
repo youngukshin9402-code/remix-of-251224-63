@@ -930,12 +930,14 @@ export type Database = {
       }
       nutrition_settings: {
         Row: {
+          activity_level: string | null
           age: number | null
           calorie_goal: number | null
           carb_goal_g: number | null
           conditions: string[] | null
           current_weight: number | null
           fat_goal_g: number | null
+          gender: string | null
           goal_weight: number | null
           height_cm: number | null
           protein_goal_g: number | null
@@ -943,12 +945,14 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          activity_level?: string | null
           age?: number | null
           calorie_goal?: number | null
           carb_goal_g?: number | null
           conditions?: string[] | null
           current_weight?: number | null
           fat_goal_g?: number | null
+          gender?: string | null
           goal_weight?: number | null
           height_cm?: number | null
           protein_goal_g?: number | null
@@ -956,12 +960,14 @@ export type Database = {
           user_id: string
         }
         Update: {
+          activity_level?: string | null
           age?: number | null
           calorie_goal?: number | null
           carb_goal_g?: number | null
           conditions?: string[] | null
           current_weight?: number | null
           fat_goal_g?: number | null
+          gender?: string | null
           goal_weight?: number | null
           height_cm?: number | null
           protein_goal_g?: number | null
