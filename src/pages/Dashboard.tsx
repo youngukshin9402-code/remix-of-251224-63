@@ -196,7 +196,7 @@ export default function Dashboard() {
                 </div>
                 <span className="text-xs text-muted-foreground whitespace-nowrap truncate">건강나이</span>
               </div>
-              {hasHealthAge && healthAge !== undefined && actualAge !== undefined && healthAge < actualAge && (
+              {hasHealthAge && (
                 <Badge className="bg-health-green text-white text-[9px] px-1 py-0 shrink-0">
                   달성
                 </Badge>
