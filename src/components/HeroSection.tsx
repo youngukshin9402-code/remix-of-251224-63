@@ -25,9 +25,9 @@ export function HeroSection() {
 
           {/* 메인 타이틀 */}
           <h1 className="text-4xl md:text-5xl lg:text-7xl font-bold text-foreground mb-8 leading-tight animate-slide-up">
-            하루에 한 번,
+            <span className="text-primary">영양갱</span>은 간단하게
             <br />
-            <span className="text-primary">건강</span> 한 입
+            건강은 단단하게
           </h1>
 
           {/* 서브 타이틀 */}
@@ -35,7 +35,9 @@ export function HeroSection() {
             className="text-xl md:text-2xl text-muted-foreground mb-12 max-w-2xl mx-auto leading-relaxed animate-slide-up"
             style={{ animationDelay: "100ms" }}
           >
-            당신의 하루에 맞춰, 옆에서 함께 합니다.
+            당신의 하루에 맞춰
+            <br />
+            옆에서 함께 합니다.
           </p>
 
           {/* CTA 버튼들 */}

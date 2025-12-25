@@ -17,7 +17,7 @@ const buttonVariants = cva(
         link: "text-primary underline-offset-4 hover:underline",
         // 양갱 스타일 버튼
         yanggaeng: "bg-primary text-primary-foreground hover:shadow-glow shadow-soft active:shadow-none",
-        hero: "bg-primary text-primary-foreground text-xl px-10 py-6 hover:shadow-glow shadow-lg",
+        hero: "bg-[hsl(25,95%,48%)] text-primary-foreground text-xl px-10 py-6 hover:bg-[hsl(25,95%,42%)] hover:shadow-glow shadow-lg",
         card: "bg-card text-card-foreground border-2 border-border hover:border-primary hover:shadow-card",
         accent: "bg-accent text-accent-foreground hover:bg-accent/90 hover:shadow-lg",
       },
