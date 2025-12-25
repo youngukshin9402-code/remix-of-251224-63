@@ -747,6 +747,7 @@ export default function Auth() {
                         type="number"
                         value={height}
                         onChange={(e) => setHeight(e.target.value)}
+                        min="1"
                         required
                         className="h-12"
                       />
@@ -760,6 +761,7 @@ export default function Auth() {
                         type="number"
                         value={currentWeight}
                         onChange={(e) => setCurrentWeight(e.target.value)}
+                        min="1"
                         required
                         className="h-12"
                       />
@@ -773,6 +775,7 @@ export default function Auth() {
                         type="number"
                         value={goalWeight}
                         onChange={(e) => setGoalWeight(e.target.value)}
+                        min="1"
                         required
                         className="h-12"
                       />
@@ -786,6 +789,7 @@ export default function Auth() {
                         type="number"
                         value={age}
                         onChange={(e) => setAge(e.target.value)}
+                        min="1"
                         required
                         className="h-12"
                       />
