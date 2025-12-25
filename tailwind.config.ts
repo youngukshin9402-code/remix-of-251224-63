@@ -62,12 +62,12 @@ export default {
   				amber: 'hsl(var(--yanggaeng-amber))',
   				cream: 'hsl(var(--yanggaeng-cream))'
   			},
-			health: {
-				green: 'hsl(var(--health-green))',
-				orange: 'hsl(var(--nutrition-orange))',
-				blue: 'hsl(var(--exercise-blue))',
-				purple: 'hsl(var(--health-purple))'
-			}
+  			health: {
+  				green: 'hsl(var(--health-green))',
+  				orange: 'hsl(var(--nutrition-orange))',
+  				blue: 'hsl(var(--exercise-blue))',
+  				purple: 'hsl(var(--health-purple))'
+  			}
   		},
   		borderRadius: {
   			lg: 'var(--radius)',
@@ -121,7 +121,7 @@ export default {
   			]
   		},
   		spacing: {
-  			'touch': '48px',
+  			touch: '48px',
   			'touch-lg': '56px'
   		},
   		boxShadow: {
@@ -153,7 +153,7 @@ export default {
   					height: '0'
   				}
   			},
-  			'float': {
+  			float: {
   				'0%, 100%': {
   					transform: 'translateY(0)'
   				},
@@ -201,7 +201,7 @@ export default {
   		animation: {
   			'accordion-down': 'accordion-down 0.2s ease-out',
   			'accordion-up': 'accordion-up 0.2s ease-out',
-  			'float': 'float 6s ease-in-out infinite',
+  			float: 'float 6s ease-in-out infinite',
   			'pulse-soft': 'pulse-soft 3s ease-in-out infinite',
   			'slide-up': 'slide-up 0.6s ease-out forwards',
   			'fade-in': 'fade-in 0.8s ease-out forwards',
@@ -209,20 +209,19 @@ export default {
   		},
   		fontFamily: {
   			sans: [
-  				'Lato',
+  				'Roboto',
   				'ui-sans-serif',
   				'system-ui',
   				'-apple-system',
   				'BlinkMacSystemFont',
   				'Segoe UI',
-  				'Roboto',
   				'Helvetica Neue',
   				'Arial',
   				'Noto Sans',
   				'sans-serif'
   			],
   			serif: [
-  				'EB Garamond',
+  				'Libre Caslon Text',
   				'ui-serif',
   				'Georgia',
   				'Cambria',
@@ -231,7 +230,7 @@ export default {
   				'serif'
   			],
   			mono: [
-  				'Fira Code',
+  				'Roboto Mono',
   				'ui-monospace',
   				'SFMono-Regular',
   				'Menlo',
