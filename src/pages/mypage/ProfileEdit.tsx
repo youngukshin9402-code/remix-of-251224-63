@@ -24,20 +24,24 @@ export default function ProfileEdit() {
   const [deleteConfirmed, setDeleteConfirmed] = useState(false);
 
   // 신체 정보 상태
+  const [gender, setGender] = useState<"male" | "female" | "">("");
   const [heightCm, setHeightCm] = useState("");
   const [age, setAge] = useState("");
   const [currentWeight, setCurrentWeight] = useState("");
   const [goalWeight, setGoalWeight] = useState("");
+  const [activityLevel, setActivityLevel] = useState("");
   const [conditions, setConditions] = useState<string[]>([]);
   const [conditionInput, setConditionInput] = useState("");
 
   // 설정 로드
   useEffect(() => {
     if (settings) {
+      setGender((settings.gender as "male" | "female") || "");
       setHeightCm(settings.heightCm?.toString() || "");
       setAge(settings.age?.toString() || "");
       setCurrentWeight(settings.currentWeight?.toString() || "");
       setGoalWeight(settings.goalWeight?.toString() || "");
+      setActivityLevel(settings.activityLevel || "");
       setConditions(settings.conditions || []);
     }
   }, [settings]);
@@ -73,7 +77,7 @@ export default function ProfileEdit() {
     const currentWeightNum = parseFloat(currentWeight);
     const goalWeightNum = parseFloat(goalWeight);
 
-    if (!age || !heightCm || !currentWeight || !goalWeight) {
+    if (!age || !heightCm || !currentWeight || !goalWeight || !gender || !activityLevel) {
       toast({ title: "필수 정보를 모두 입력해주세요", variant: "destructive" });
       return;
     }
@@ -116,6 +120,8 @@ export default function ProfileEdit() {
         heightCm: heightNum,
         currentWeight: currentWeightNum,
         goalWeight: goalWeightNum,
+        gender,
+        activityLevel,
         conditions,
       });
 
@@ -217,81 +223,143 @@ export default function ProfileEdit() {
               <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium flex items-center gap-1">
-                  <Calendar className="w-4 h-4" />
-                  만 나이 <span className="text-destructive">*</span>
+            <>
+              {/* 성별 선택 */}
+              <div className="space-y-2 mb-4">
+                <label className="text-sm font-medium">
+                  성별 <span className="text-destructive">*</span>
                 </label>
-                <div className="relative">
-                  <Input
-                    type="number"
-                    value={age}
-                    onChange={e => setAge(e.target.value)}
-                    placeholder="30"
-                    min={1}
-                    max={120}
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">세</span>
+                <div className="flex gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setGender("male")}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all ${
+                      gender === "male"
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border hover:border-primary/50"
+                    }`}
+                  >
+                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                      gender === "male" ? "border-primary" : "border-muted-foreground"
+                    }`}>
+                      {gender === "male" && <div className="w-2 h-2 rounded-full bg-primary" />}
+                    </div>
+                    남성
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setGender("female")}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all ${
+                      gender === "female"
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border hover:border-primary/50"
+                    }`}
+                  >
+                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                      gender === "female" ? "border-primary" : "border-muted-foreground"
+                    }`}>
+                      {gender === "female" && <div className="w-2 h-2 rounded-full bg-primary" />}
+                    </div>
+                    여성
+                  </button>
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium flex items-center gap-1">
-                  <Ruler className="w-4 h-4" />
-                  키 <span className="text-destructive">*</span>
-                </label>
-                <div className="relative">
-                  <Input
-                    type="number"
-                    value={heightCm}
-                    onChange={e => setHeightCm(e.target.value)}
-                    placeholder="170"
-                    min={100}
-                    max={250}
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">cm</span>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium flex items-center gap-1">
+                    <Calendar className="w-4 h-4" />
+                    만 나이 <span className="text-destructive">*</span>
+                  </label>
+                  <div className="relative">
+                    <Input
+                      type="number"
+                      value={age}
+                      onChange={e => setAge(e.target.value)}
+                      placeholder="30"
+                      min={1}
+                      max={120}
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">세</span>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium flex items-center gap-1">
+                    <Ruler className="w-4 h-4" />
+                    키 <span className="text-destructive">*</span>
+                  </label>
+                  <div className="relative">
+                    <Input
+                      type="number"
+                      value={heightCm}
+                      onChange={e => setHeightCm(e.target.value)}
+                      placeholder="170"
+                      min={100}
+                      max={250}
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">cm</span>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium flex items-center gap-1">
+                    <Weight className="w-4 h-4" />
+                    현재 체중 <span className="text-destructive">*</span>
+                  </label>
+                  <div className="relative">
+                    <Input
+                      type="number"
+                      step="0.1"
+                      value={currentWeight}
+                      onChange={e => setCurrentWeight(e.target.value)}
+                      placeholder="70"
+                      min={30}
+                      max={300}
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">kg</span>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium flex items-center gap-1">
+                    <Target className="w-4 h-4" />
+                    목표 체중 <span className="text-destructive">*</span>
+                  </label>
+                  <div className="relative">
+                    <Input
+                      type="number"
+                      step="0.1"
+                      value={goalWeight}
+                      onChange={e => setGoalWeight(e.target.value)}
+                      placeholder="65"
+                      min={30}
+                      max={300}
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">kg</span>
+                  </div>
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium flex items-center gap-1">
-                  <Weight className="w-4 h-4" />
-                  현재 체중 <span className="text-destructive">*</span>
+              {/* 활동수준 */}
+              <div className="space-y-2 mt-4">
+                <label className="text-sm font-medium">
+                  활동수준 <span className="text-destructive">*</span>
                 </label>
-                <div className="relative">
-                  <Input
-                    type="number"
-                    step="0.1"
-                    value={currentWeight}
-                    onChange={e => setCurrentWeight(e.target.value)}
-                    placeholder="70"
-                    min={30}
-                    max={300}
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">kg</span>
-                </div>
+                <select
+                  value={activityLevel}
+                  onChange={(e) => setActivityLevel(e.target.value)}
+                  className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                >
+                  <option value="">선택해주세요</option>
+                  <option value="sedentary">거의 활동 안함</option>
+                  <option value="light">가벼운 활동 (주 1~3회 가벼운 운동)</option>
+                  <option value="moderate">보통 활동 (주 3~5회 운동)</option>
+                  <option value="active">활발한 활동 (주 6~7회 강한 운동)</option>
+                  <option value="very_active">매우 활발한 활동 (하루 2회 운동, 운동선수)</option>
+                </select>
               </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium flex items-center gap-1">
-                  <Target className="w-4 h-4" />
-                  목표 체중 <span className="text-destructive">*</span>
-                </label>
-                <div className="relative">
-                  <Input
-                    type="number"
-                    step="0.1"
-                    value={goalWeight}
-                    onChange={e => setGoalWeight(e.target.value)}
-                    placeholder="65"
-                    min={30}
-                    max={300}
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">kg</span>
-                </div>
-              </div>
-            </div>
+            </>
           )}
 
           {/* 지병 입력 */}
