@@ -46,18 +46,17 @@ export function YanggaengSection() {
             title="건강양갱"
             description={
               <>
-                건강검진 결과를 사진으로<br className="md:hidden" />
-                {" "}찍으면 AI가 쉬운 말로<br className="md:hidden" />
-                {" "}설명해드려요
+                결과를 이해하는데서 끝나지 않고<br />
+                일상에서 실천할 수 있게 챙겨드려요
               </>
             }
             icon={Stethoscope}
             color="health"
             to="/medical"
             features={[
-              "건강검진 결과 자동 분석",
-              "쉬운 용어로 설명",
-              "건강 나이 측정",
+              "검진 결과 쉬운 말로 설명",
+              "생활습관 맞춤 코칭",
+              "다음에 도움될 검사, 영양제 안내",
             ]}
             delay={0}
           />
