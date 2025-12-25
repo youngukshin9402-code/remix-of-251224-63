@@ -24,10 +24,12 @@ export function HeroSection() {
           </div>
 
           {/* 메인 타이틀 */}
-          <h1 className="text-4xl md:text-5xl lg:text-7xl font-bold text-foreground mb-8 leading-tight animate-slide-up">
-            <span className="text-primary">영양갱</span>은 간단하게
+          <h1 className="font-bold text-foreground mb-8 leading-tight animate-slide-up">
+            <span className="text-4xl md:text-5xl lg:text-7xl text-primary">영양갱</span>
+            <span className="text-2xl md:text-3xl lg:text-5xl">은 간단하게</span>
             <br />
-            건강은 단단하게
+            <span className="text-4xl md:text-5xl lg:text-7xl text-primary">건강</span>
+            <span className="text-2xl md:text-3xl lg:text-5xl">은 단단하게</span>
           </h1>
 
           {/* 서브 타이틀 */}
