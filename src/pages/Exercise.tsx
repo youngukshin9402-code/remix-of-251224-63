@@ -1225,77 +1225,82 @@ export default function Exercise() {
                     </div>
                   </>
                 ) : (
-                  /* 보기 모드 */
-                  <div className="px-6 py-4 space-y-4 overflow-y-auto">
-                    {/* 종목 */}
-                    <div>
-                      <p className="text-sm text-muted-foreground mb-1">종목</p>
-                      <p className="font-medium">{getShortenedSportLabel(sportLabel)}</p>
+                  /* 보기 모드 - 스크롤 본문 + sticky 하단 */
+                  <>
+                    {/* 스크롤 영역 */}
+                    <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+                      {/* 종목 */}
+                      <div>
+                        <p className="text-sm text-muted-foreground mb-1">종목</p>
+                        <p className="font-medium">{getShortenedSportLabel(sportLabel)}</p>
+                      </div>
+                      
+                      {/* 운동명 목록 */}
+                      {exerciseNames.length > 0 && (
+                        <div>
+                          <p className="text-sm text-muted-foreground mb-1">운동명</p>
+                          <ExerciseTagList names={exerciseNames} />
+                        </div>
+                      )}
+                      
+                      {/* 총 운동시간 */}
+                      {detailExercise.duration && (
+                        <div>
+                          <p className="text-sm text-muted-foreground mb-1">총 운동시간</p>
+                          <p className="font-medium">{detailExercise.duration}분</p>
+                        </div>
+                      )}
+                      
+                      {/* 사진 섹션 */}
+                      {detailExercise.images && detailExercise.images.length > 0 && (
+                        <div>
+                          <p className="text-sm text-muted-foreground mb-1">사진</p>
+                          <GymPhotoUpload
+                            images={detailExercise.images}
+                            onImagesChange={() => {}}
+                            readonly
+                          />
+                        </div>
+                      )}
+                      
+                      {/* 메모 표시 */}
+                      {detailExercise.memo && (
+                        <div>
+                          <p className="text-sm text-muted-foreground mb-1">메모</p>
+                          <p className="font-medium whitespace-pre-wrap">{detailExercise.memo}</p>
+                        </div>
+                      )}
+                      
+                      {/* 세트 정보 (있는 경우) */}
+                      {detailExercise.sets && detailExercise.sets.length > 0 && (
+                        <div>
+                          <p className="text-sm text-muted-foreground mb-1">세트</p>
+                          <div className="flex flex-wrap gap-2">
+                            {detailExercise.sets.map((set, i) => (
+                              <span
+                                key={i}
+                                className="text-sm bg-muted px-3 py-1 rounded-full"
+                              >
+                                {i + 1}세트: {set.weight}kg × {set.reps}회
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                     
-                    {/* 운동명 목록 */}
-                    {exerciseNames.length > 0 && (
-                      <div>
-                        <p className="text-sm text-muted-foreground mb-1">운동명</p>
-                        <ExerciseTagList names={exerciseNames} />
-                      </div>
-                    )}
-                    
-                    {/* 총 운동시간 */}
-                    {detailExercise.duration && (
-                      <div>
-                        <p className="text-sm text-muted-foreground mb-1">총 운동시간</p>
-                        <p className="font-medium">{detailExercise.duration}분</p>
-                      </div>
-                    )}
-                    
-                    {/* 사진 섹션 */}
-                    {detailExercise.images && detailExercise.images.length > 0 && (
-                      <div>
-                        <p className="text-sm text-muted-foreground mb-1">사진</p>
-                        <GymPhotoUpload
-                          images={detailExercise.images}
-                          onImagesChange={() => {}}
-                          readonly
-                        />
-                      </div>
-                    )}
-                    
-                    {/* 메모 표시 */}
-                    {detailExercise.memo && (
-                      <div>
-                        <p className="text-sm text-muted-foreground mb-1">메모</p>
-                        <p className="font-medium whitespace-pre-wrap">{detailExercise.memo}</p>
-                      </div>
-                    )}
-                    
-                    {/* 세트 정보 (있는 경우) */}
-                    {detailExercise.sets && detailExercise.sets.length > 0 && (
-                      <div>
-                        <p className="text-sm text-muted-foreground mb-1">세트</p>
-                        <div className="flex flex-wrap gap-2">
-                          {detailExercise.sets.map((set, i) => (
-                            <span
-                              key={i}
-                              className="text-sm bg-muted px-3 py-1 rounded-full"
-                            >
-                              {i + 1}세트: {set.weight}kg × {set.reps}회
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* 삭제 버튼 */}
-                    <Button 
-                      variant="destructive" 
-                      className="w-full"
-                      onClick={() => deleteExercise(detailExercise.id)}
-                    >
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      삭제하기
-                    </Button>
-                  </div>
+                    {/* 하단 액션바 - sticky 고정 */}
+                    <div className="shrink-0 border-t bg-background px-6 py-4 pb-safe">
+                      <Button 
+                        variant="destructive" 
+                        className="w-full"
+                        onClick={() => deleteExercise(detailExercise.id)}
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        삭제하기
+                      </Button>
+                    </div>
+                  </>
                 )}
               </>
             );
