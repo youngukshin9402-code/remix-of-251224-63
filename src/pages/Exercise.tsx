@@ -146,7 +146,25 @@ function parseExerciseName(name: string): { sportType: string; sportLabel: strin
   return { sportType, sportLabel, exerciseNames };
 }
 
-// 운동 기록 카드 (리스트용)
+// 종목 라벨 줄임 처리
+const getShortenedSportLabel = (label: string) => {
+  // "헬스(근력운동)" -> "헬스(근력)"
+  if (label === "헬스(근력운동)") return "헬스(근력)";
+  // 기타 긴 라벨들 필요시 추가
+  return label;
+};
+
+// 운동명 요약 생성 (1줄 + 외 n)
+const getExerciseSummary = (names: string[]): { line1: string; overflow: number } => {
+  if (names.length === 0) return { line1: "", overflow: 0 };
+  if (names.length === 1) return { line1: names[0], overflow: 0 };
+  if (names.length === 2) return { line1: `${names[0]} · ${names[1]}`, overflow: 0 };
+  // 3개 이상: 최대 3개까지 첫 줄에 표시, 나머지는 overflow
+  const displayNames = names.slice(0, 3).join(" · ");
+  return { line1: displayNames, overflow: names.length - 3 };
+};
+
+// 운동 기록 카드 (리스트용) - 고정 높이 96px
 const ExerciseCard = memo(function ExerciseCard({
   exercise,
   onClick,
@@ -155,32 +173,31 @@ const ExerciseCard = memo(function ExerciseCard({
   onClick: () => void;
 }) {
   const { sportLabel, exerciseNames } = parseExerciseName(exercise.name);
+  const shortenedLabel = getShortenedSportLabel(sportLabel);
+  const { line1, overflow } = getExerciseSummary(exerciseNames);
   
   return (
     <div 
-      className="bg-card rounded-2xl border border-border p-4 cursor-pointer hover:bg-muted/50 transition-colors"
+      className="bg-card rounded-2xl border border-border p-3 cursor-pointer hover:bg-muted/50 transition-colors h-24 flex flex-col justify-between"
       onClick={onClick}
     >
-      <div className="flex items-start justify-between mb-2">
-        <div className="flex items-center gap-3">
-          {exercise.imageUrl && (
-            <img
-              src={exercise.imageUrl}
-              alt={sportLabel}
-              className="w-12 h-12 rounded-xl object-cover"
-            />
-          )}
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-lg">[{sportLabel}]</span>
-            {exercise.duration && (
-              <span className="text-sm text-muted-foreground">{exercise.duration}분</span>
-            )}
-          </div>
-        </div>
+      {/* 상단: 종목 + 시간 */}
+      <div className="flex items-center justify-between">
+        <span className="font-semibold text-base truncate">{shortenedLabel}</span>
+        <span className="text-sm text-muted-foreground shrink-0">
+          {exercise.duration ? `${exercise.duration}분` : ""}
+        </span>
       </div>
       
-      {/* 운동명 태그 - 공용 컴포넌트 사용 */}
-      <ExerciseTagList names={exerciseNames} className="mt-2" />
+      {/* 하단: 운동명 요약 (1줄 고정) */}
+      <div className="flex flex-col gap-0.5 min-h-[2.5rem]">
+        {line1 && (
+          <p className="text-sm text-muted-foreground truncate leading-tight">{line1}</p>
+        )}
+        {overflow > 0 && (
+          <p className="text-xs text-muted-foreground/70 leading-tight">외 {overflow}</p>
+        )}
+      </div>
     </div>
   );
 });
@@ -959,7 +976,7 @@ export default function Exercise() {
           </Button>
         )}
 
-        {/* 오늘 운동 기록 - Show skeleton while loading */}
+        {/* 오늘 운동 기록 - 2열 그리드, 고정 높이 */}
         {recordLoading ? (
           <ExerciseSkeleton />
         ) : todayGymRecord && todayGymRecord.exercises.length > 0 ? (
@@ -967,13 +984,15 @@ export default function Exercise() {
             <h3 className="font-medium text-muted-foreground">
               {format(selectedDate, "M월 d일", { locale: ko })} 기록
             </h3>
-            {todayGymRecord.exercises.map((exercise) => (
-              <ExerciseCard
-                key={exercise.id}
-                exercise={exercise}
-                onClick={() => openDetailSheet(exercise)}
-              />
-            ))}
+            <div className="grid grid-cols-2 gap-3">
+              {todayGymRecord.exercises.map((exercise) => (
+                <ExerciseCard
+                  key={exercise.id}
+                  exercise={exercise}
+                  onClick={() => openDetailSheet(exercise)}
+                />
+              ))}
+            </div>
           </div>
         ) : (
           <div className="bg-muted rounded-2xl p-8 text-center">
