@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Camera, Plus, X, Loader2, Image as ImageIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -48,13 +48,13 @@ export function GymPhotoUpload({
   };
 
   // Load signed URLs on mount and when images change
-  useState(() => {
+  useEffect(() => {
     images.forEach(path => {
       if (!signedUrls[path] && !path.startsWith('http') && !path.startsWith('data:')) {
         getSignedUrl(path);
       }
     });
-  });
+  }, [images]);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
