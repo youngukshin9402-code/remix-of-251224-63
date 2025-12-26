@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Camera, Plus, X, Loader2, Image as ImageIcon } from 'lucide-react';
+import { Camera, Plus, X, Loader2, Image as ImageIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { uploadGymPhoto, getGymPhotoSignedUrl, deleteGymPhoto } from '@/lib/gymPhotoUpload';
 import { useAuth } from '@/contexts/AuthContext';
@@ -25,7 +25,7 @@ export function GymPhotoUpload({
   const [uploading, setUploading] = useState(false);
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
   const [loadingUrls, setLoadingUrls] = useState<Record<string, boolean>>({});
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   // Get signed URL for a path
   const getSignedUrl = async (path: string) => {
@@ -109,6 +109,34 @@ export function GymPhotoUpload({
     return signedUrls[path] || null;
   };
 
+  // Get all display URLs for lightbox navigation
+  const displayUrls = images.map(path => getDisplayUrl(path)).filter(Boolean) as string[];
+
+  const openLightbox = (index: number) => {
+    setLightboxIndex(index);
+  };
+
+  const closeLightbox = () => {
+    setLightboxIndex(null);
+  };
+
+  const goToPrev = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (lightboxIndex === null) return;
+    setLightboxIndex(lightboxIndex > 0 ? lightboxIndex - 1 : displayUrls.length - 1);
+  };
+
+  const goToNext = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (lightboxIndex === null) return;
+    setLightboxIndex(lightboxIndex < displayUrls.length - 1 ? lightboxIndex + 1 : 0);
+  };
+
+  const goToIndex = (e: React.MouseEvent, index: number) => {
+    e.stopPropagation();
+    setLightboxIndex(index);
+  };
+
   return (
     <div className={cn("space-y-2", className)}>
       {/* Photo Grid */}
@@ -131,8 +159,8 @@ export function GymPhotoUpload({
                   <img
                     src={displayUrl}
                     alt={`운동 사진 ${index + 1}`}
-                    className="w-full h-full object-cover cursor-pointer"
-                    onClick={() => setSelectedImage(displayUrl)}
+                    className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                    onClick={() => openLightbox(index)}
                     onError={() => {
                       // Retry getting signed URL
                       getSignedUrl(path);
@@ -215,23 +243,67 @@ export function GymPhotoUpload({
         onChange={handleFileSelect}
       />
 
-      {/* Lightbox */}
-      {selectedImage && (
+      {/* Lightbox with navigation */}
+      {lightboxIndex !== null && displayUrls[lightboxIndex] && (
         <div 
-          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
-          onClick={() => setSelectedImage(null)}
+          className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center"
+          onClick={closeLightbox}
         >
+          {/* Close button */}
           <button
-            className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 text-white flex items-center justify-center hover:bg-white/20"
-            onClick={() => setSelectedImage(null)}
+            type="button"
+            className="absolute top-4 right-4 w-12 h-12 rounded-full bg-white/10 text-white flex items-center justify-center hover:bg-white/20 z-10"
+            onClick={closeLightbox}
           >
             <X className="w-6 h-6" />
           </button>
+          
+          {/* Previous button */}
+          {displayUrls.length > 1 && (
+            <button
+              type="button"
+              className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70 z-10"
+              onClick={goToPrev}
+            >
+              <ChevronLeft className="w-6 h-6" />
+            </button>
+          )}
+          
+          {/* Image */}
           <img
-            src={selectedImage}
+            src={displayUrls[lightboxIndex]}
             alt="확대된 사진"
-            className="max-w-full max-h-full object-contain rounded-lg"
+            className="max-w-[90vw] max-h-[85vh] object-contain"
+            onClick={(e) => e.stopPropagation()}
           />
+          
+          {/* Next button */}
+          {displayUrls.length > 1 && (
+            <button
+              type="button"
+              className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70 z-10"
+              onClick={goToNext}
+            >
+              <ChevronRight className="w-6 h-6" />
+            </button>
+          )}
+          
+          {/* Indicator dots */}
+          {displayUrls.length > 1 && (
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2 z-10">
+              {displayUrls.map((_, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  className={cn(
+                    "w-2.5 h-2.5 rounded-full transition-colors",
+                    idx === lightboxIndex ? "bg-white" : "bg-white/40 hover:bg-white/60"
+                  )}
+                  onClick={(e) => goToIndex(e, idx)}
+                />
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
