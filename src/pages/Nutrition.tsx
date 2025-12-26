@@ -29,6 +29,7 @@ import { useNutritionSettings } from "@/hooks/useNutritionSettings";
 import { useDailyData } from "@/contexts/DailyDataContext";
 import { MealType, MealFood, MealRecordServer } from "@/hooks/useServerSync";
 import { getKSTDateString, formatDateToKSTString, parseKSTDateString, isToday, NutritionGoals } from "@/lib/nutritionUtils";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 // Components
 import { NutritionSummaryCard } from "@/components/nutrition/NutritionSummaryCard";
@@ -289,11 +290,11 @@ export default function Nutrition() {
 
   return (
     <div className="space-y-6 pb-8">
-      {/* 헤더 */}
-      <div>
-        <h1 className="text-3xl font-bold text-foreground mb-2">영양양갱</h1>
-        <p className="text-lg text-muted-foreground">식사를 기록하고 건강을 관리하세요</p>
-      </div>
+      {/* 헤더 - 공용 컴포넌트 사용 */}
+      <PageHeader 
+        title="영양양갱" 
+        subtitle="식사를 기록하고 건강을 관리하세요" 
+      />
 
       {/* 날짜 네비게이션 */}
       <div className="flex items-center justify-between bg-card rounded-2xl border border-border p-3">
