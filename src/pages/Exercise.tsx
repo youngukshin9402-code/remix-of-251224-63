@@ -303,9 +303,9 @@ export default function Exercise() {
     setAddedExerciseNames(prev => prev.filter((_, i) => i !== index));
   };
 
-  // 저장하기 버튼 클릭
-  const handleSaveExercise = () => {
-    if (!currentExercise) return;
+  // 저장하기 버튼 클릭 - 바로 서버에 저장
+  const handleSaveExercise = async () => {
+    if (!currentExercise || !user) return;
 
     const sportLabel = SPORT_TYPES.find(s => s.value === currentExercise.sportType)?.label || currentExercise.sportType;
     
@@ -318,32 +318,78 @@ export default function Exercise() {
       ? `[${sportLabel}] ${exerciseNamesStr}`
       : `[${sportLabel}]`;
 
-    const exerciseToAdd: ExerciseRecord = {
-      ...currentExercise,
+    const exerciseToSave: GymExercise = {
+      id: currentExercise.id,
       name: displayName,
-      exerciseNames: addedExerciseNames,
+      sets: currentExercise.sets || [],
+      imageUrl: currentExercise.imageUrl,
     };
 
-    if (editingPendingIndex !== null) {
-      setPendingExercises(prev => prev.map((ex, idx) =>
-        idx === editingPendingIndex ? exerciseToAdd : ex
-      ));
-      setEditingPendingIndex(null);
-      toast({ title: "운동이 수정되었습니다" });
-    } else if (editingExerciseId) {
-      // 기존 서버 기록 수정
-      saveExistingExercise(exerciseToAdd);
-      return;
-    } else {
-      setPendingExercises(prev => [...prev, exerciseToAdd]);
-      toast({ title: "운동이 장바구니에 추가되었습니다", description: "저장 버튼으로 한 번에 저장하세요" });
-    }
+    try {
+      if (editingPendingIndex !== null) {
+        // 장바구니 수정
+        const updatedExercise: ExerciseRecord = {
+          ...currentExercise,
+          name: displayName,
+          exerciseNames: addedExerciseNames,
+        };
+        setPendingExercises(prev => prev.map((ex, idx) =>
+          idx === editingPendingIndex ? updatedExercise : ex
+        ));
+        setEditingPendingIndex(null);
+        toast({ title: "운동이 수정되었습니다" });
+      } else if (editingExerciseId) {
+        // 기존 서버 기록 수정
+        if (!todayGymRecord) return;
+        const newExercises = todayGymRecord.exercises.map((ex) =>
+          ex.id === editingExerciseId ? exerciseToSave : ex
+        );
+        await update(todayGymRecord.id, newExercises);
+        toast({ title: "운동 기록 수정 완료!" });
+      } else {
+        // 새 운동 바로 저장
+        if (isOnline) {
+          if (todayGymRecord) {
+            const newExercises = [...todayGymRecord.exercises, exerciseToSave];
+            await update(todayGymRecord.id, newExercises);
+          } else {
+            await add([exerciseToSave]);
+          }
+          toast({ title: "운동 기록 저장 완료!" });
+          refetchHeaders();
+        } else {
+          const localId = await addToPending('gym_record', {
+            user_id: user.id,
+            date: dateStr,
+            exercises: todayGymRecord
+              ? [...todayGymRecord.exercises, exerciseToSave]
+              : [exerciseToSave],
+          });
 
-    // 폼 초기화
-    setCurrentExercise(null);
-    setShowAddExercise(false);
-    setAddedExerciseNames([]);
-    setExerciseNameInput("");
+          addOffline(
+            todayGymRecord
+              ? [...todayGymRecord.exercises, exerciseToSave]
+              : [exerciseToSave],
+            localId
+          );
+
+          toast({
+            title: "로컬에 저장됨",
+            description: "온라인 복귀 시 자동으로 서버에 업로드됩니다."
+          });
+        }
+      }
+
+      // 폼 초기화
+      setCurrentExercise(null);
+      setShowAddExercise(false);
+      setAddedExerciseNames([]);
+      setExerciseNameInput("");
+      setEditingExerciseId(null);
+    } catch (error) {
+      console.error('Save error:', error);
+      toast({ title: "저장 실패", description: "다시 시도해주세요", variant: "destructive" });
+    }
   };
 
   // 장바구니에서 운동 제거
