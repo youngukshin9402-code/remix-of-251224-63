@@ -32,6 +32,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { computeHealthAge, Gender as HealthAgeGender } from "@/utils/healthAge";
 import html2canvas from "html2canvas";
 import HealthShareCard from "@/components/health/HealthShareCard";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 import { format } from "date-fns";
 import { ko } from "date-fns/locale";
@@ -1308,13 +1309,11 @@ export default function Medical() {
 
   return (
     <div className="space-y-6">
-      {/* 헤더 */}
-      <div>
-        <h1 className="text-3xl font-bold text-foreground mb-2">건강양갱</h1>
-        <p className="text-lg text-muted-foreground">
-          건강검진과 인바디 결과를 한 눈에
-        </p>
-      </div>
+      {/* 헤더 - 공용 컴포넌트 사용 */}
+      <PageHeader 
+        title="건강양갱" 
+        subtitle="건강검진과 인바디 결과를 한 눈에" 
+      />
 
       {/* 탭 */}
       <Tabs defaultValue="checkup" className="w-full">

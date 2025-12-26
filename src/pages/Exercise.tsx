@@ -47,6 +47,7 @@ import { cn } from "@/lib/utils";
 import { useGymMonthHeaders, useGymDayRecord, GymExercise, GymSet } from "@/hooks/useGymRecordsOptimized";
 import { usePendingQueueOptimized } from "@/hooks/usePendingQueueOptimized";
 import { useAuth } from "@/contexts/AuthContext";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 // 운동 종목 목록 + placeholder + 색상
 const SPORT_TYPES = [
@@ -716,6 +717,12 @@ export default function Exercise() {
 
   return (
     <div className="space-y-6 pb-8">
+      {/* 헤더 - 항상 첫 번째, 공용 컴포넌트 사용 */}
+      <PageHeader 
+        title="운동양갱" 
+        subtitle="오늘의 운동을 기록하세요" 
+      />
+
       {/* 오프라인 배너 */}
       {!isOnline && (
         <div className="bg-yellow-100 dark:bg-yellow-900 border border-yellow-300 dark:border-yellow-700 rounded-xl p-3 flex items-center gap-2">
@@ -758,12 +765,6 @@ export default function Exercise() {
         capture="environment"
         onChange={handleMachineImageSelect}
       />
-
-      {/* 헤더 - 영양탭과 동일 구조 */}
-      <div>
-        <h1 className="text-3xl font-bold text-foreground mb-2">운동양갱</h1>
-        <p className="text-lg text-muted-foreground">오늘의 운동을 기록하세요</p>
-      </div>
 
       {/* 걸음수 연동 Placeholder - 영양탭 NutritionSummaryCard와 동일한 높이 */}
       <div className="bg-gradient-to-br from-emerald-500 to-teal-500 rounded-3xl p-4 text-white space-y-3">
