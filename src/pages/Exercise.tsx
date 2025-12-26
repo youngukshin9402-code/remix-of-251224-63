@@ -46,13 +46,13 @@ import { useGymMonthHeaders, useGymDayRecord, GymExercise, GymSet } from "@/hook
 import { usePendingQueueOptimized } from "@/hooks/usePendingQueueOptimized";
 import { useAuth } from "@/contexts/AuthContext";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { ExerciseTagList, ExerciseTag } from "@/components/exercise/ExerciseTag";
+import { ExerciseTagList, ExerciseTag, OverflowTag } from "@/components/exercise/ExerciseTag";
 import { GymPhotoUpload } from "@/components/exercise/GymPhotoUpload";
 
 // 운동 종목 목록 + placeholder + 색상
 const SPORT_TYPES = [
   { value: "walking", label: "걷기", placeholder: "예: 3km", color: "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/30" },
-  { value: "health", label: "헬스(근력운동)", placeholder: "예: 벤치프레스", color: "bg-orange-500/20 text-orange-700 dark:text-orange-300 border-orange-500/30" },
+  { value: "health", label: "헬스(근력)", placeholder: "예: 벤치프레스", color: "bg-orange-500/20 text-orange-700 dark:text-orange-300 border-orange-500/30" },
   { value: "hiking", label: "등산", placeholder: "예: 금정산(왕복)", color: "bg-green-600/20 text-green-700 dark:text-green-300 border-green-600/30" },
   { value: "running", label: "러닝/조깅", placeholder: "예: 5km", color: "bg-blue-500/20 text-blue-700 dark:text-blue-300 border-blue-500/30" },
   { value: "cycling", label: "자전거", placeholder: "예: 야외 라이딩 20km", color: "bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 border-cyan-500/30" },
@@ -67,7 +67,7 @@ const SPORT_TYPES = [
   { value: "tabletennis", label: "탁구", placeholder: "예: 단식", color: "bg-rose-500/20 text-rose-700 dark:text-rose-300 border-rose-500/30" },
   { value: "gateball", label: "게이트볼", placeholder: "예: 1경기", color: "bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 border-indigo-500/30" },
   { value: "gymnastics", label: "체조/맨손운동", placeholder: "예: 실버체조 또는 스트레칭", color: "bg-violet-500/20 text-violet-700 dark:text-violet-300 border-violet-500/30" },
-  { value: "aquarobics", label: "아쿠아로빅", placeholder: "예: 수중 에어로빅", color: "bg-blue-400/20 text-blue-600 dark:text-blue-300 border-blue-400/30" },
+  { value: "aquarobics", label: "아쿠아로빅", placeholder: "예: 수중 에어로빉", color: "bg-blue-400/20 text-blue-600 dark:text-blue-300 border-blue-400/30" },
   { value: "barefoot", label: "맨발 걷기", placeholder: "예: 황톳길 맨발 걷기", color: "bg-yellow-600/20 text-yellow-700 dark:text-yellow-300 border-yellow-600/30" },
   { value: "other", label: "기타", placeholder: "예: 운동 내용", color: "bg-gray-500/20 text-gray-700 dark:text-gray-300 border-gray-500/30" },
 ];
@@ -146,10 +146,10 @@ function parseExerciseName(name: string): { sportType: string; sportLabel: strin
   return { sportType, sportLabel, exerciseNames };
 }
 
-// 종목 라벨 줄임 처리
+// 종목 라벨 줄임 처리 (기존 데이터 호환)
 const getShortenedSportLabel = (label: string) => {
-  // "헬스(근력운동)" -> "헬스(근력)"
-  if (label === "헬스(근력운동)") return "헬스(근력)";
+  // 기존 저장된 "헬스(근력운동)" 데이터도 "헬스(근력)"으로 표시
+  if (label === "헬스(근력운동)" || label === "헬스(근력)") return "헬스(근력)";
   // 기타 긴 라벨들 필요시 추가
   return label;
 };
@@ -165,6 +165,7 @@ const getExerciseSummary = (names: string[]): { line1: string; overflow: number 
 };
 
 // 운동 기록 카드 (리스트용) - 고정 높이 96px, 컬러 태그
+// 규칙: 최대 3개 태그 (실제 운동명 최대 2개 + 외 n개 1개), 1줄 고정, 소형 태그
 const ExerciseCard = memo(function ExerciseCard({
   exercise,
   onClick,
@@ -175,8 +176,10 @@ const ExerciseCard = memo(function ExerciseCard({
   const { sportLabel, exerciseNames } = parseExerciseName(exercise.name);
   const shortenedLabel = getShortenedSportLabel(sportLabel);
 
-  const displayTags = exerciseNames.slice(0, 3);
-  const overflowCount = Math.max(0, exerciseNames.length - 3);
+  // 카드 전용 규칙: 최대 2개 운동명 태그 + 외 n개 태그 (총 3개 태그)
+  const maxVisibleTags = 2;
+  const displayTags = exerciseNames.slice(0, maxVisibleTags);
+  const overflowCount = Math.max(0, exerciseNames.length - maxVisibleTags);
 
   return (
     <div
@@ -191,21 +194,19 @@ const ExerciseCard = memo(function ExerciseCard({
         </span>
       </div>
 
-      {/* 하단: 운동명 컬러 태그 (1줄) + 외 n (조건부 2번째 줄 단독) */}
-      <div className="flex flex-col gap-0.5">
-        <div className="flex items-center gap-1 overflow-hidden">
-          {displayTags.map((name, i) => (
-            <ExerciseTag
-              key={`${name}-${i}`}
-              name={name}
-              index={i}
-              size="sm"
-              className="max-w-[7rem] truncate"
-            />
-          ))}
-        </div>
+      {/* 하단: 운동명 컬러 태그 (1줄 고정, 최대 3개: 실제 2개 + 외 n개 1개) */}
+      <div className="flex items-center gap-1 overflow-hidden flex-nowrap">
+        {displayTags.map((name, i) => (
+          <ExerciseTag
+            key={`${name}-${i}`}
+            name={name}
+            index={i}
+            size="xs"
+            className="shrink-0 max-w-[5rem] truncate"
+          />
+        ))}
         {overflowCount > 0 && (
-          <p className="text-xs text-muted-foreground/70 leading-tight">외 {overflowCount}</p>
+          <OverflowTag count={overflowCount} size="xs" />
         )}
       </div>
     </div>
