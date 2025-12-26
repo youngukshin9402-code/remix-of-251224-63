@@ -1832,12 +1832,19 @@ export default function Exercise() {
       {lightboxImage && (
         <div 
           className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center"
-          onClick={() => setLightboxImage(null)}
+          onClick={(e) => {
+            e.stopPropagation();
+            setLightboxImage(null);
+          }}
         >
           {/* 닫기 버튼 */}
           <button 
-            className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center text-white/80 hover:text-white"
-            onClick={() => setLightboxImage(null)}
+            type="button"
+            className="absolute top-4 right-4 w-12 h-12 flex items-center justify-center text-white bg-black/50 hover:bg-black/70 rounded-full z-10"
+            onClick={(e) => {
+              e.stopPropagation();
+              setLightboxImage(null);
+            }}
           >
             <X className="w-6 h-6" />
           </button>
@@ -1845,7 +1852,8 @@ export default function Exercise() {
           {/* 이전 버튼 */}
           {lightboxImages.length > 1 && (
             <button 
-              className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center text-white/80 hover:text-white bg-black/30 rounded-full"
+              type="button"
+              className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 flex items-center justify-center text-white bg-black/50 hover:bg-black/70 rounded-full z-10"
               onClick={(e) => {
                 e.stopPropagation();
                 const newIndex = lightboxIndex > 0 ? lightboxIndex - 1 : lightboxImages.length - 1;
@@ -1861,14 +1869,15 @@ export default function Exercise() {
           <img
             src={lightboxImage}
             alt="확대 보기"
-            className="max-w-[90vw] max-h-[90vh] object-contain"
+            className="max-w-[90vw] max-h-[85vh] object-contain"
             onClick={(e) => e.stopPropagation()}
           />
           
           {/* 다음 버튼 */}
           {lightboxImages.length > 1 && (
             <button 
-              className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center text-white/80 hover:text-white bg-black/30 rounded-full"
+              type="button"
+              className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 flex items-center justify-center text-white bg-black/50 hover:bg-black/70 rounded-full z-10"
               onClick={(e) => {
                 e.stopPropagation();
                 const newIndex = lightboxIndex < lightboxImages.length - 1 ? lightboxIndex + 1 : 0;
@@ -1882,13 +1891,14 @@ export default function Exercise() {
           
           {/* 인디케이터 */}
           {lightboxImages.length > 1 && (
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-1.5">
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2 z-10">
               {lightboxImages.map((_, idx) => (
                 <button
+                  type="button"
                   key={idx}
                   className={cn(
-                    "w-2 h-2 rounded-full transition-colors",
-                    idx === lightboxIndex ? "bg-white" : "bg-white/40"
+                    "w-2.5 h-2.5 rounded-full transition-colors",
+                    idx === lightboxIndex ? "bg-white" : "bg-white/40 hover:bg-white/60"
                   )}
                   onClick={(e) => {
                     e.stopPropagation();
