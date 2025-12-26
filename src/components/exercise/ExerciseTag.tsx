@@ -3,6 +3,8 @@
  * 모든 화면에서 동일한 스타일(컬러 filled)로 렌더링됩니다.
  * - 해시 기반 색상 매핑: 동일 운동명은 항상 동일 색상
  * - 인덱스 기반 색상 옵션도 지원
+ * - xs: 카드 전용 소형 태그
+ * - sm/md: 팝업/상세 화면용
  */
 
 import { X } from "lucide-react";
@@ -48,7 +50,7 @@ interface ExerciseTagProps {
   name: string;
   index?: number; // 인덱스 기반 색상을 원할 경우 사용
   onRemove?: () => void;
-  size?: "sm" | "md";
+  size?: "xs" | "sm" | "md"; // xs: 카드용 초소형
   className?: string;
 }
 
@@ -64,20 +66,23 @@ export function ExerciseTag({
     ? getExerciseTagColorByIndex(index) 
     : getExerciseTagColor(name);
   
-  const sizeClass = size === "sm" 
-    ? "text-xs px-2 py-0.5" 
-    : "text-sm px-2.5 py-1";
+  // 사이즈별 스타일
+  const sizeClass = {
+    xs: "text-[10px] px-1.5 py-0.5 leading-tight", // 카드용 초소형
+    sm: "text-xs px-2 py-0.5",
+    md: "text-sm px-2.5 py-1",
+  }[size];
 
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-full border font-medium",
+        "inline-flex items-center gap-0.5 rounded-full border font-medium whitespace-nowrap",
         sizeClass,
         colorClass,
         className
       )}
     >
-      {name}
+      <span className="truncate">{name}</span>
       {onRemove && (
         <button
           type="button"
@@ -85,20 +90,48 @@ export function ExerciseTag({
             e.stopPropagation();
             onRemove();
           }}
-          className="ml-0.5 hover:bg-black/10 dark:hover:bg-white/10 rounded-full p-0.5 transition-colors"
+          className="ml-0.5 hover:bg-black/10 dark:hover:bg-white/10 rounded-full p-0.5 transition-colors shrink-0"
         >
-          <X className={size === "sm" ? "w-3 h-3" : "w-3.5 h-3.5"} />
+          <X className={size === "xs" ? "w-2.5 h-2.5" : size === "sm" ? "w-3 h-3" : "w-3.5 h-3.5"} />
         </button>
       )}
     </span>
   );
 }
 
-// 태그 리스트 렌더링 헬퍼 컴포넌트
+// "외 n개" 오버플로우 태그 (중립색, 카드 전용)
+interface OverflowTagProps {
+  count: number;
+  size?: "xs" | "sm" | "md";
+  className?: string;
+}
+
+export function OverflowTag({ count, size = "xs", className }: OverflowTagProps) {
+  const sizeClass = {
+    xs: "text-[10px] px-1.5 py-0.5 leading-tight",
+    sm: "text-xs px-2 py-0.5",
+    md: "text-sm px-2.5 py-1",
+  }[size];
+
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center rounded-full border font-medium whitespace-nowrap shrink-0",
+        "bg-muted/50 text-muted-foreground border-muted-foreground/20",
+        sizeClass,
+        className
+      )}
+    >
+      외 {count}개
+    </span>
+  );
+}
+
+// 태그 리스트 렌더링 헬퍼 컴포넌트 (팝업/상세용 - 전체 표시, wrap 허용)
 interface ExerciseTagListProps {
   names: string[];
   onRemove?: (index: number) => void;
-  size?: "sm" | "md";
+  size?: "xs" | "sm" | "md";
   className?: string;
 }
 
