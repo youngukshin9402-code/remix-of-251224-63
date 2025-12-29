@@ -25,6 +25,9 @@ export function CheckinSheet({ trigger }: CheckinSheetProps) {
   const [mealCount, setMealCount] = useState(3);
   const [notes, setNotes] = useState('');
 
+  // 디버깅 로그
+  console.log('[CheckinSheet] hasCoach:', hasCoach);
+
   const conditionEmojis = ['😫', '😕', '😐', '🙂', '😊'];
   const conditionLabels = ['매우 나쁨', '나쁨', '보통', '좋음', '매우 좋음'];
 
@@ -48,7 +51,9 @@ export function CheckinSheet({ trigger }: CheckinSheetProps) {
     }
   };
 
+  // 코치가 없으면 버튼 숨김
   if (!hasCoach) {
+    console.log('[CheckinSheet] Hidden - no coach assigned');
     return null;
   }
 

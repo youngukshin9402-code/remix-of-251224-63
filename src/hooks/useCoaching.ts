@@ -71,6 +71,11 @@ export function useCoaching() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
 
+  // 디버깅 로그
+  console.log('[useCoaching] profile:', profile);
+  console.log('[useCoaching] assigned_coach_id:', profile?.assigned_coach_id);
+  console.log('[useCoaching] hasCoach:', !!profile?.assigned_coach_id);
+
   const fetchAvailableSlots = async () => {
     const today = new Date().toISOString().split("T")[0];
     const { data, error } = await supabase
