@@ -1159,13 +1159,17 @@ export default function Exercise() {
 
         {/* 운동 추가 버튼 + 빠른 추가 버튼 */}
         <div className="flex gap-2">
-          <Button className="flex-1 h-14" onClick={startNewExercise}>
+          <Button 
+            variant="outline" 
+            className="flex-1 h-14 border-2 border-[hsl(25,95%,48%)] bg-transparent text-foreground hover:bg-[hsl(25,95%,48%)]/10"
+            onClick={startNewExercise}
+          >
             <Plus className="w-5 h-5 mr-2" />
             운동 추가
           </Button>
           <Button 
             variant="default" 
-            className="h-14 w-20 flex flex-col items-center justify-center text-base font-semibold leading-tight bg-[hsl(25,95%,48%)] hover:bg-[hsl(25,95%,42%)] text-primary-foreground"
+            className="h-14 w-20 flex flex-col items-center justify-center text-base font-semibold leading-tight"
             onClick={startQuickAdd}
           >
             <span>빠른</span>
