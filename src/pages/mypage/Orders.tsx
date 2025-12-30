@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useOrdersServer, OrderStatus } from "@/hooks/useServerSync";
 import { 
@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 
 export default function OrdersPage() {
+  const navigate = useNavigate();
   const { data: orders, loading } = useOrdersServer();
 
   // 결제 완료(paid) 또는 코칭 시작(coaching_started) 상태만 표시
@@ -98,11 +99,14 @@ export default function OrdersPage() {
                 )}
 
                 {(order.status === 'paid' || order.status === 'coaching_started') && (
-                  <Button asChild className="w-full" size="sm">
-                    <Link to="/coaching">
-                      <MessageSquare className="w-4 h-4 mr-2" />
-                      코칭 바로가기
-                    </Link>
+                  <Button
+                    className="w-full"
+                    size="sm"
+                    type="button"
+                    onClick={() => navigate("/coaching")}
+                  >
+                    <MessageSquare className="w-4 h-4 mr-2" />
+                    코칭 바로가기
                   </Button>
                 )}
               </div>
@@ -112,8 +116,13 @@ export default function OrdersPage() {
           <div className="text-center py-12 text-muted-foreground">
             <ShoppingBag className="w-12 h-12 mx-auto mb-3 opacity-30" />
             <p>결제 완료된 주문이 없습니다</p>
-            <Button asChild className="mt-4" variant="default">
-              <Link to="/coaching">코칭 신청하기</Link>
+            <Button
+              className="mt-4"
+              variant="default"
+              type="button"
+              onClick={() => navigate("/coaching")}
+            >
+              코칭 신청하기
             </Button>
           </div>
         )}
