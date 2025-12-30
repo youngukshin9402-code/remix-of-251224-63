@@ -21,8 +21,6 @@ export function CheckinSheet({ trigger }: CheckinSheetProps) {
   const [open, setOpen] = useState(false);
   const [conditionScore, setConditionScore] = useState(3);
   const [sleepHours, setSleepHours] = useState(7);
-  const [exerciseDone, setExerciseDone] = useState(false);
-  const [mealCount, setMealCount] = useState(3);
   const [notes, setNotes] = useState('');
 
   // 디버깅 로그
@@ -35,8 +33,6 @@ export function CheckinSheet({ trigger }: CheckinSheetProps) {
     const success = await sendCheckin({
       conditionScore,
       sleepHours,
-      exerciseDone,
-      mealCount,
       notes: notes.trim() || undefined,
     });
     
@@ -45,8 +41,6 @@ export function CheckinSheet({ trigger }: CheckinSheetProps) {
       // Reset form
       setConditionScore(3);
       setSleepHours(7);
-      setExerciseDone(false);
-      setMealCount(3);
       setNotes('');
     }
   };
