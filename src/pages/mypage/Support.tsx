@@ -322,18 +322,17 @@ export default function SupportPage() {
         }
       );
 
-      const { error: authedError } = await supabaseAuthed
+      const result = await supabaseAuthed
         .from("support_ticket_replies")
         .update(updatePayload)
-        .eq("id", messageId);
+        .eq("id", messageId)
+        .select();
 
-      console.log("🔍 [DELETE DEBUG] authed client result:", {
-        ok: !authedError,
-        code: authedError?.code,
-        message: authedError?.message,
-        details: authedError?.details,
-        hint: authedError?.hint,
-      });
+      console.log("[DELETE DEBUG] full result:", result);
+      console.log("[DELETE DEBUG] error JSON:", JSON.stringify(result.error, null, 2));
+      console.log("[DELETE DEBUG] data JSON:", JSON.stringify(result.data, null, 2));
+
+      const authedError = result.error;
 
       // authed 클라이언트로 성공하면, '토큰 미전달' 케이스로 판단하고 성공 처리
       if (!authedError) {
