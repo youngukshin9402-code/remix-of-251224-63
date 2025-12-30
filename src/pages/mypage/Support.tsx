@@ -55,6 +55,7 @@ interface Ticket {
 interface ThreadMessage {
   id: string;
   ticket_id: string;
+  user_id: string;
   message: string;
   is_admin: boolean;
   sender_type: string;
@@ -271,14 +272,20 @@ export default function SupportPage() {
 
     const { error } = await supabase
       .from("support_ticket_replies")
-      .update({ 
+      .update({
         is_deleted: true,
         deleted_at: new Date().toISOString(),
       })
-      .eq("id", messageId);
+      .eq("id", messageId)
+      .eq("user_id", user.id);
 
     if (error) {
-      toast({ title: "삭제에 실패했습니다", variant: "destructive" });
+      console.error('Error deleting reply:', error);
+      toast({
+        title: "삭제에 실패했습니다",
+        description: error.message,
+        variant: "destructive",
+      });
     } else {
       toast({ title: "메시지가 삭제되었습니다" });
       setDeleteConfirmId(null);
@@ -296,6 +303,7 @@ export default function SupportPage() {
 
   // 답글 수정 시작
   const startEditingReply = (message: ThreadMessage) => {
+    if (!user || message.user_id !== user.id) return;
     setEditingMessageId(message.id);
     setEditingTicketId(null);
     setEditingText(message.message);
@@ -511,8 +519,8 @@ export default function SupportPage() {
                   )}
                 </div>
                 
-                {/* 사용자 메시지만 수정/삭제 가능 */}
-                {msg.sender_type === 'user' && !editingMessageId && (
+                {/* 사용자 본인 메시지만 수정/삭제 가능 */}
+                {msg.sender_type === 'user' && msg.user_id === user?.id && !editingMessageId && (
                   <div className="flex items-center gap-1">
                     <Button
                       variant="ghost"
