@@ -14,12 +14,27 @@ export interface GuardianConnection {
   guardian_nickname?: string;
 }
 
+interface PhoneVerificationResult {
+  success: boolean;
+  code?: string;
+  expires_in_minutes?: number;
+  error?: string;
+}
+
+interface ConnectionResult {
+  success: boolean;
+  connection_id?: string;
+  error?: string;
+}
+
 export function useGuardianConnection() {
   const { user, profile } = useAuth();
   const [connections, setConnections] = useState<GuardianConnection[]>([]);
-  const [pendingCode, setPendingCode] = useState<string | null>(null);
-  const [codeExpiresAt, setCodeExpiresAt] = useState<Date | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // 휴대전화 인증 관련 상태
+  const [pendingVerificationCode, setPendingVerificationCode] = useState<string | null>(null);
+  const [verificationExpiresAt, setVerificationExpiresAt] = useState<Date | null>(null);
 
   const fetchConnections = useCallback(async () => {
     if (!user) return;
@@ -36,6 +51,8 @@ export function useGuardianConnection() {
       const connectionsWithNicknames = await Promise.all(
         (data || []).map(async (conn) => {
           const otherUserId = conn.user_id === user.id ? conn.guardian_id : conn.user_id;
+          if (!otherUserId) return conn;
+          
           const { data: profileData } = await supabase
             .from("profiles")
             .select("nickname")
@@ -50,17 +67,9 @@ export function useGuardianConnection() {
         })
       );
 
-      setConnections(connectionsWithNicknames);
-
-      // Check for pending code
-      const myPendingConnection = data?.find(
-        (c) => c.user_id === user.id && c.connection_code && new Date(c.code_expires_at!) > new Date()
-      );
-
-      if (myPendingConnection) {
-        setPendingCode(myPendingConnection.connection_code);
-        setCodeExpiresAt(new Date(myPendingConnection.code_expires_at!));
-      }
+      // 실제 연결만 필터링 (guardian_id가 있는 것)
+      const validConnections = connectionsWithNicknames.filter(c => c.guardian_id);
+      setConnections(validConnections);
     } catch (error) {
       console.error("Error fetching connections:", error);
     } finally {
@@ -68,64 +77,51 @@ export function useGuardianConnection() {
     }
   }, [user, profile]);
 
-  // Generate a 6-digit connection code
-  const generateConnectionCode = async () => {
-    if (!user) return null;
+  // 휴대전화 인증 코드 생성 (사용자가 보호자에게 전달)
+  const generatePhoneVerificationCode = async (phone: string) => {
+    if (!user || !phone) {
+      toast.error("휴대전화 번호를 입력해주세요");
+      return null;
+    }
 
     try {
-      const code = Math.random().toString().slice(2, 8);
-      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+      const { data, error } = await supabase.rpc('generate_phone_verification_code', {
+        p_phone: phone,
+        p_purpose: 'guardian_connection'
+      });
 
-      // Check if user already has a pending connection (guardian_id is null)
-      const { data: existing } = await supabase
-        .from("guardian_connections")
-        .select("id")
-        .eq("user_id", user.id)
-        .is("guardian_id", null)
-        .maybeSingle();
+      if (error) throw error;
 
-      if (existing) {
-        // Update existing pending connection
-        const { error } = await supabase
-          .from("guardian_connections")
-          .update({
-            connection_code: code,
-            code_expires_at: expiresAt.toISOString(),
-          })
-          .eq("id", existing.id);
+      const result = data as unknown as PhoneVerificationResult;
 
-        if (error) throw error;
+      if (result.success && result.code) {
+        setPendingVerificationCode(result.code);
+        setVerificationExpiresAt(new Date(Date.now() + (result.expires_in_minutes || 5) * 60 * 1000));
+        
+        // Mock 모드: 콘솔에 코드 출력 (실제 SMS 대신)
+        console.log(`[Mock SMS] 인증 코드: ${result.code} (${phone}로 발송됨)`);
+        toast.success(`인증 코드가 생성되었습니다. (Mock: ${result.code})`);
+        
+        return result.code;
       } else {
-        // Create new pending connection with guardian_id = null
-        const { error } = await supabase.from("guardian_connections").insert([{
-          user_id: user.id,
-          guardian_id: null, // null = pending state
-          connection_code: code,
-          code_expires_at: expiresAt.toISOString(),
-        }]);
-
-        if (error) throw error;
+        toast.error("인증 코드 생성에 실패했습니다");
+        return null;
       }
-
-      setPendingCode(code);
-      setCodeExpiresAt(expiresAt);
-      toast.success("연결 코드가 생성되었어요!");
-      return code;
     } catch (error) {
-      console.error("Error generating code:", error);
-      toast.error("코드 생성에 실패했습니다");
+      console.error("Error generating verification code:", error);
+      toast.error("인증 코드 생성에 실패했습니다");
       return null;
     }
   };
 
-  // Connect as guardian using code (via RPC for RLS bypass)
-  const connectWithCode = async (code: string) => {
+  // 보호자가 인증 코드로 연결 (휴대전화 번호 + 인증 코드)
+  const connectWithPhoneVerification = async (targetPhone: string, verificationCode: string) => {
     if (!user) return false;
 
     try {
-      // Use RPC function for secure connection
-      const { data, error } = await supabase.rpc('connect_guardian_with_code', {
-        p_code: code
+      const { data, error } = await supabase.rpc('connect_guardian_with_phone_verification', {
+        p_target_user_phone: targetPhone,
+        p_verification_code: verificationCode
       });
 
       if (error) {
@@ -134,13 +130,15 @@ export function useGuardianConnection() {
         return false;
       }
 
-      const result = data as { success: boolean; error?: string; connection_id?: string };
+      const result = data as unknown as ConnectionResult;
 
       if (!result.success) {
         if (result.error === 'invalid_code') {
-          toast.error("유효하지 않은 코드예요. 다시 확인해주세요.");
+          toast.error("유효하지 않은 인증 코드예요. 다시 확인해주세요.");
         } else if (result.error === 'self_connection') {
           toast.error("자기 자신과는 연결할 수 없어요.");
+        } else if (result.error === 'already_connected') {
+          toast.error("이미 연결된 사용자입니다.");
         } else {
           toast.error("연결에 실패했습니다");
         }
@@ -157,6 +155,26 @@ export function useGuardianConnection() {
     }
   };
 
+  // 연결 해제
+  const disconnectGuardian = async (connectionId: string) => {
+    try {
+      const { error } = await supabase
+        .from("guardian_connections")
+        .delete()
+        .eq("id", connectionId);
+
+      if (error) throw error;
+
+      toast.success("연결이 해제되었습니다");
+      await fetchConnections();
+      return true;
+    } catch (error) {
+      console.error("Error disconnecting:", error);
+      toast.error("연결 해제에 실패했습니다");
+      return false;
+    }
+  };
+
   useEffect(() => {
     if (user) {
       fetchConnections();
@@ -165,11 +183,12 @@ export function useGuardianConnection() {
 
   return {
     connections,
-    pendingCode,
-    codeExpiresAt,
     isLoading,
-    generateConnectionCode,
-    connectWithCode,
+    pendingVerificationCode,
+    verificationExpiresAt,
+    generatePhoneVerificationCode,
+    connectWithPhoneVerification,
+    disconnectGuardian,
     fetchConnections,
   };
 }

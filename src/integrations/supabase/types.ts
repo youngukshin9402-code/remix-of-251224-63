@@ -1079,6 +1079,39 @@ export type Database = {
           },
         ]
       }
+      phone_verification_codes: {
+        Row: {
+          code: string
+          created_at: string
+          expires_at: string
+          id: string
+          phone: string
+          purpose: string
+          user_id: string
+          verified: boolean
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          phone: string
+          purpose?: string
+          user_id: string
+          verified?: boolean
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          phone?: string
+          purpose?: string
+          user_id?: string
+          verified?: boolean
+        }
+        Relationships: []
+      }
       point_history: {
         Row: {
           amount: number
@@ -1624,6 +1657,14 @@ export type Database = {
     }
     Functions: {
       connect_guardian_with_code: { Args: { p_code: string }; Returns: Json }
+      connect_guardian_with_phone_verification: {
+        Args: { p_target_user_phone: string; p_verification_code: string }
+        Returns: Json
+      }
+      generate_phone_verification_code: {
+        Args: { p_phone: string; p_purpose?: string }
+        Returns: Json
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
