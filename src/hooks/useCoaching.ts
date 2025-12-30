@@ -30,9 +30,60 @@ interface CoachProfile {
 interface CheckinData {
   conditionScore: number;
   sleepHours: number;
-  exerciseDone: boolean;
-  mealCount: number;
   notes?: string;
+}
+
+interface SnapshotData {
+  // 사용자 입력
+  checkin: {
+    conditionScore: number;
+    sleepHours: number;
+  };
+  memo: string | null;
+  
+  // 홈탭 요약
+  home: {
+    calories: { current: number; goal: number; percent: number };
+    water: { current: number; goal: number; percent: number };
+    healthAge: { actual: number | null; health: number | null } | null;
+  };
+  
+  // 건강탭 - 최근 기록 1건
+  health: {
+    id: string;
+    exam_date: string | null;
+    health_age: number | null;
+    health_tags: string[] | null;
+    parsed_data: any;
+    created_at: string;
+  } | null;
+  
+  // 영양탭 - 오늘 기록 전체
+  nutrition: {
+    totalCalories: number;
+    macros: { carbs: number; protein: number; fat: number };
+    meals: Array<{
+      meal_type: string;
+      total_calories: number;
+      foods: any[];
+      image_url: string | null;
+      created_at: string;
+    }>;
+  };
+  
+  // 운동탭 - 오늘 기록 전체
+  exercise: {
+    records: Array<{
+      id: string;
+      exercises: any[];
+      images: string[] | null;
+      created_at: string;
+    }>;
+  };
+  
+  // 메타데이터
+  sentAt: string;
+  timezone: string;
 }
 
 // 지병 기반 추천 데이터
@@ -154,24 +205,70 @@ export function useCoaching() {
     }
     setSending(true);
     try {
-      const today = new Date().toISOString().split('T')[0];
-      const dateFormatted = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
+      const now = new Date();
+      const today = now.toISOString().split('T')[0];
+      const sentAt = now.toISOString();
 
-      // 오늘 데이터 조회 (병렬)
-      const [mealResult, waterResult, waterSettingsResult, nutritionSettingsResult, weightResult, gymResult] = await Promise.all([
-        supabase.from('meal_records').select('total_calories, foods').eq('user_id', user.id).eq('date', today),
-        supabase.from('water_logs').select('amount').eq('user_id', user.id).eq('date', today),
-        supabase.from('water_settings').select('daily_goal').eq('user_id', user.id).maybeSingle(),
-        supabase.from('nutrition_settings').select('calorie_goal, carb_goal_g, protein_goal_g, fat_goal_g, current_weight, goal_weight, conditions').eq('user_id', user.id).maybeSingle(),
-        supabase.from('weight_records').select('weight').eq('user_id', user.id).order('date', { ascending: false }).limit(1),
-        supabase.from('gym_records').select('exercises').eq('user_id', user.id).eq('date', today),
+      // 모든 필요 데이터 병렬 조회
+      const [
+        mealResult, 
+        waterResult, 
+        waterSettingsResult, 
+        nutritionSettingsResult, 
+        healthRecordResult,
+        gymResult,
+        adminResult,
+        versionResult
+      ] = await Promise.all([
+        // 오늘 식사 기록 전체
+        supabase.from('meal_records')
+          .select('id, meal_type, total_calories, foods, image_url, created_at')
+          .eq('user_id', user.id)
+          .eq('date', today)
+          .order('created_at', { ascending: true }),
+        // 오늘 물 섭취
+        supabase.from('water_logs')
+          .select('amount')
+          .eq('user_id', user.id)
+          .eq('date', today),
+        // 물 목표
+        supabase.from('water_settings')
+          .select('daily_goal')
+          .eq('user_id', user.id)
+          .maybeSingle(),
+        // 영양 설정 (칼로리 목표 등)
+        supabase.from('nutrition_settings')
+          .select('calorie_goal, carb_goal_g, protein_goal_g, fat_goal_g')
+          .eq('user_id', user.id)
+          .maybeSingle(),
+        // 최근 건강 기록 1건
+        supabase.from('health_records')
+          .select('id, exam_date, health_age, health_tags, parsed_data, created_at')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(1),
+        // 오늘 운동 기록 전체
+        supabase.from('gym_records')
+          .select('id, exercises, images, created_at')
+          .eq('user_id', user.id)
+          .eq('date', today),
+        // 관리자 목록 (role=admin)
+        supabase.from('user_roles')
+          .select('user_id')
+          .eq('role', 'admin'),
+        // 오늘 같은 날짜 리포트 버전 확인
+        (supabase.from('checkin_reports') as any)
+          .select('version_number')
+          .eq('user_id', user.id)
+          .eq('report_date', today)
+          .order('version_number', { ascending: false })
+          .limit(1),
       ]);
 
       // 데이터 집계
       const meals = mealResult.data || [];
       const totalCalories = meals.reduce((sum, m) => sum + (m.total_calories || 0), 0);
       
-      // 매크로 집계
       let totalCarbs = 0, totalProtein = 0, totalFat = 0;
       meals.forEach(meal => {
         const foods = meal.foods as Array<{ carbs?: number; protein?: number; fat?: number }> || [];
@@ -185,91 +282,142 @@ export function useCoaching() {
       const waterLogs = waterResult.data || [];
       const totalWater = waterLogs.reduce((sum, w) => sum + (w.amount || 0), 0);
       const waterGoal = waterSettingsResult.data?.daily_goal || 2000;
+      const calorieGoal = nutritionSettingsResult.data?.calorie_goal || 2000;
 
-      const ns = nutritionSettingsResult.data;
-      const calorieGoal = ns?.calorie_goal || 2000;
-      const currentWeight = weightResult.data?.[0]?.weight || ns?.current_weight || null;
-      const goalWeight = ns?.goal_weight || null;
-      const conditions = (ns?.conditions as string[]) || [];
-
-      // 운동 데이터
+      const healthRecord = healthRecordResult.data?.[0] || null;
       const gymRecords = gymResult.data || [];
-      interface ExerciseItem { name?: string; sets?: number; reps?: number; weight?: number }
-      const exercises: ExerciseItem[] = gymRecords.flatMap(r => (r.exercises as ExerciseItem[]) || []);
+      const adminIds = (adminResult.data || []).map(r => r.user_id);
 
-      const hasAnyData = meals.length > 0 || waterLogs.length > 0 || exercises.length > 0;
+      // 버전 번호 계산
+      const lastVersion = versionResult.data?.[0]?.version_number || 0;
+      const newVersion = lastVersion + 1;
 
-      // 메시지 생성
-      const conditionEmoji = ['😫', '😕', '😐', '🙂', '😊'][data.conditionScore - 1] || '😐';
-      const caloriePercent = calorieGoal > 0 ? Math.round((totalCalories / calorieGoal) * 100) : 0;
-
-      let message = `[오늘 체크인] ${profile?.nickname || '사용자'} / ${dateFormatted}\n\n`;
-
-      if (!hasAnyData) {
-        message += `📭 오늘 기록이 아직 없습니다.\n물/식사/운동 기록을 남겨주세요.\n\n`;
-      } else {
-        message += `✅ 칼로리: ${totalCalories.toLocaleString()}/${calorieGoal.toLocaleString()}kcal (${caloriePercent}%)\n`;
-        message += `🍚 탄/단/지: ${Math.round(totalCarbs)}g / ${Math.round(totalProtein)}g / ${Math.round(totalFat)}g\n`;
-        message += `💧 물: ${totalWater.toLocaleString()}/${waterGoal.toLocaleString()}ml\n`;
-
-        if (exercises.length > 0) {
-          message += `🏋️ 운동:\n`;
-          exercises.slice(0, 3).forEach(ex => {
-            const parts = [ex.name || '운동'];
-            if (ex.sets) parts.push(`${ex.sets}세트`);
-            if (ex.reps) parts.push(`${ex.reps}회`);
-            if (ex.weight) parts.push(`${ex.weight}kg`);
-            message += `- ${parts.join(' ')}\n`;
-          });
-          if (exercises.length > 3) message += `- ...외 ${exercises.length - 3}개\n`;
-        } else {
-          message += `🏋️ 운동: 오늘 운동 기록 없음\n`;
-        }
-
-        if (currentWeight !== null) {
-          message += `⚖️ 체중: ${currentWeight}kg`;
-          if (goalWeight !== null) message += ` (목표 ${goalWeight}kg)`;
-          message += `\n`;
-        }
-      }
-
-      message += `\n${conditionEmoji} 컨디션: ${data.conditionScore}/5점\n`;
-      message += `😴 수면: ${data.sleepHours}시간\n`;
-      message += data.exerciseDone ? `✅ 운동 완료\n` : `❌ 운동 안함\n`;
-      message += `🍽️ 식사 횟수: ${data.mealCount}회\n`;
-      message += `📝 메모: ${data.notes?.trim() || '-'}\n`;
-
-      if (conditions.length > 0) {
-        message += `\n🔎 지병: ${conditions.join(' · ')}\n`;
-        const recs = getRecommendationsForConditions(conditions);
-        if (recs.avoid.length > 0 || recs.prefer.length > 0) {
-          message += `📌 지병 기반 추천:\n`;
-          if (recs.avoid.length > 0) message += `- 피하기: ${recs.avoid.join(', ')}\n`;
-          if (recs.prefer.length > 0) message += `- 권장: ${recs.prefer.join(', ')}\n`;
-          message += `(※ 참고용이며 진단/치료 대체 아님)\n`;
-        }
-      }
-
-      // 구조화된 요약 생성 (checkin_reports용)
-      const summary = {
-        kcal: { intake: totalCalories, goal: calorieGoal, percent: caloriePercent },
-        macros: { carbs: Math.round(totalCarbs), protein: Math.round(totalProtein), fat: Math.round(totalFat) },
-        water: { intake_ml: totalWater, goal_ml: waterGoal },
-        workout: exercises.slice(0, 5),
-        weight: currentWeight !== null || goalWeight !== null ? { current: currentWeight, goal: goalWeight } : null,
-        conditions: conditions.length > 0 ? conditions : null,
-        recommendations: conditions.length > 0 ? getRecommendationsForConditions(conditions) : null,
+      // 스냅샷 데이터 생성
+      const snapshotData: SnapshotData = {
         checkin: {
           conditionScore: data.conditionScore,
           sleepHours: data.sleepHours,
-          exerciseDone: data.exerciseDone,
-          mealCount: data.mealCount,
         },
         memo: data.notes?.trim() || null,
+        
+        home: {
+          calories: {
+            current: totalCalories,
+            goal: calorieGoal,
+            percent: calorieGoal > 0 ? Math.round((totalCalories / calorieGoal) * 100) : 0,
+          },
+          water: {
+            current: totalWater,
+            goal: waterGoal,
+            percent: waterGoal > 0 ? Math.round((totalWater / waterGoal) * 100) : 0,
+          },
+          healthAge: healthRecord ? {
+            actual: null, // 실제 나이는 프로필에서 가져와야 함
+            health: healthRecord.health_age,
+          } : null,
+        },
+        
+        health: healthRecord ? {
+          id: healthRecord.id,
+          exam_date: healthRecord.exam_date,
+          health_age: healthRecord.health_age,
+          health_tags: healthRecord.health_tags,
+          parsed_data: healthRecord.parsed_data,
+          created_at: healthRecord.created_at,
+        } : null,
+        
+        nutrition: {
+          totalCalories,
+          macros: {
+            carbs: Math.round(totalCarbs),
+            protein: Math.round(totalProtein),
+            fat: Math.round(totalFat),
+          },
+          meals: meals.map(m => ({
+            meal_type: m.meal_type,
+            total_calories: m.total_calories || 0,
+            foods: m.foods as any[] || [],
+            image_url: m.image_url,
+            created_at: m.created_at || '',
+          })),
+        },
+        
+        exercise: {
+          records: gymRecords.map(r => ({
+            id: r.id,
+            exercises: r.exercises as any[] || [],
+            images: r.images,
+            created_at: r.created_at || '',
+          })),
+        },
+        
+        sentAt,
+        timezone: 'Asia/Seoul',
       };
 
-      // 데이터 저장 (병렬)
+      // 요약 (기존 호환성 유지)
+      const summary = {
+        kcal: snapshotData.home.calories,
+        macros: snapshotData.nutrition.macros,
+        water: { intake_ml: totalWater, goal_ml: waterGoal },
+        workout: gymRecords.flatMap(r => (r.exercises as any[]) || []).slice(0, 5),
+        checkin: snapshotData.checkin,
+        memo: snapshotData.memo,
+      };
+
+      // 코치에게 리포트 저장
+      const reportInserts: Promise<any>[] = [];
+      
+      // 코치용 리포트
+      reportInserts.push(
+        (supabase.from('checkin_reports') as any).insert({
+          user_id: user.id,
+          coach_id: profile.assigned_coach_id,
+          report_date: today,
+          sent_at: sentAt,
+          version_number: newVersion,
+          summary,
+          snapshot_data: snapshotData,
+        })
+      );
+
+      // 관리자들에게도 리포트 저장 (코치와 중복이면 제외)
+      const uniqueAdminIds = adminIds.filter(id => id !== profile.assigned_coach_id && id !== user.id);
+      for (const adminId of uniqueAdminIds) {
+        reportInserts.push(
+          (supabase.from('checkin_reports') as any).insert({
+            user_id: user.id,
+            coach_id: adminId, // admin도 coach_id 필드 사용
+            admin_id: adminId,
+            report_date: today,
+            sent_at: sentAt,
+            version_number: newVersion,
+            summary,
+            snapshot_data: snapshotData,
+          })
+        );
+      }
+
+      // 채팅 메시지 (코치에게만)
+      const conditionEmoji = ['😫', '😕', '😐', '🙂', '😊'][data.conditionScore - 1] || '😐';
+      const dateFormatted = now.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
+      
+      let message = `[오늘의 활동 v${newVersion}] ${profile?.nickname || '사용자'} / ${dateFormatted}\n\n`;
+      message += `${conditionEmoji} 컨디션: ${data.conditionScore}/5점\n`;
+      message += `😴 수면: ${data.sleepHours}시간\n`;
+      message += `✅ 칼로리: ${totalCalories.toLocaleString()}/${calorieGoal.toLocaleString()}kcal\n`;
+      message += `💧 물: ${totalWater.toLocaleString()}/${waterGoal.toLocaleString()}ml\n`;
+      if (gymRecords.length > 0) {
+        message += `🏋️ 운동: ${gymRecords.length}건 기록\n`;
+      }
+      if (data.notes?.trim()) {
+        message += `📝 메모: ${data.notes.trim()}\n`;
+      }
+      message += `\n📊 상세 리포트는 대시보드에서 확인하세요.`;
+
+      // 병렬 저장
       await Promise.all([
+        ...reportInserts,
         supabase.from('chat_messages').insert({
           sender_id: user.id,
           receiver_id: profile.assigned_coach_id,
@@ -280,22 +428,12 @@ export function useCoaching() {
           user_id: user.id,
           condition_score: data.conditionScore,
           sleep_hours: data.sleepHours,
-          exercise_done: data.exerciseDone,
-          meal_count: data.mealCount,
           notes: data.notes,
         }),
       ]);
 
-      // checkin_reports 별도 insert (타입이 아직 자동 생성되지 않음)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (supabase.from('checkin_reports') as any).insert({
-        user_id: user.id,
-        coach_id: profile.assigned_coach_id,
-        report_date: today,
-        summary,
-      });
-
-      toast({ title: '체크인 전송 완료' });
+      const versionText = newVersion > 1 ? ` (재전송 #${newVersion})` : '';
+      toast({ title: `체크인 전송 완료${versionText}` });
       return true;
     } catch (error) {
       console.error('Checkin error:', error);

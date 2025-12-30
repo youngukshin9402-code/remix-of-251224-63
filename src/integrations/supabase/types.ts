@@ -159,28 +159,40 @@ export type Database = {
       }
       checkin_reports: {
         Row: {
+          admin_id: string | null
           coach_id: string
           created_at: string
           id: string
           report_date: string
+          sent_at: string
+          snapshot_data: Json | null
           summary: Json
           user_id: string
+          version_number: number
         }
         Insert: {
+          admin_id?: string | null
           coach_id: string
           created_at?: string
           id?: string
           report_date?: string
+          sent_at?: string
+          snapshot_data?: Json | null
           summary?: Json
           user_id: string
+          version_number?: number
         }
         Update: {
+          admin_id?: string | null
           coach_id?: string
           created_at?: string
           id?: string
           report_date?: string
+          sent_at?: string
+          snapshot_data?: Json | null
           summary?: Json
           user_id?: string
+          version_number?: number
         }
         Relationships: []
       }
