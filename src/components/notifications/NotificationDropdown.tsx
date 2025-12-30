@@ -24,6 +24,9 @@ export function NotificationDropdown() {
         return <Stethoscope className="w-4 h-4 text-health-green" />;
       case 'coaching_feedback':
         return <MessageCircle className="w-4 h-4 text-primary" />;
+      case 'support_reply':
+      case 'support_new':
+        return <MessageCircle className="w-4 h-4 text-blue-500" />;
       default:
         return <Bell className="w-4 h-4 text-muted-foreground" />;
     }
@@ -39,6 +42,13 @@ export function NotificationDropdown() {
       navigate('/medical');
     } else if (notification.related_type === 'coaching_session') {
       navigate('/mypage/coaching-feedback');
+    } else if (notification.related_type === 'support_ticket') {
+      // 관리자인 경우 관리자 페이지로, 일반 사용자인 경우 마이페이지 고객센터로
+      if (notification.type === 'support_new') {
+        navigate('/admin/tickets');
+      } else {
+        navigate('/mypage/support');
+      }
     }
 
     setOpen(false);
