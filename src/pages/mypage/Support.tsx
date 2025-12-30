@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { createClient } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -282,11 +281,33 @@ export default function SupportPage() {
       data: { session: liveSession },
     } = await supabase.auth.getSession();
 
-    const accessToken = session?.access_token ?? liveSession?.access_token ?? null;
+    const nowSec = Math.floor(Date.now() / 1000);
+    console.log("🔍 [DELETE DEBUG] now (sec):", nowSec);
+    console.log("🔍 [DELETE DEBUG] session.expires_at (sec):", liveSession?.expires_at ?? null);
+    console.log(
+      "🔍 [DELETE DEBUG] session expired?:",
+      liveSession?.expires_at ? liveSession.expires_at <= nowSec : null
+    );
 
-    console.log("🔍 [DELETE DEBUG] session.user.id:", liveSession?.user?.id);
+    // 만료/임박 케이스 확인을 위해 refresh 시도
+    const refreshResult = await supabase.auth.refreshSession();
+    console.log("🔍 [DELETE DEBUG] refreshSession result:", {
+      hasSession: Boolean(refreshResult.data.session),
+      error: refreshResult.error
+        ? {
+            message: refreshResult.error.message,
+            status: (refreshResult.error as any).status,
+          }
+        : null,
+    });
+
+    const {
+      data: { session: refreshedSession },
+    } = await supabase.auth.getSession();
+
+    console.log("🔍 [DELETE DEBUG] refreshed.expires_at (sec):", refreshedSession?.expires_at ?? null);
+    console.log("🔍 [DELETE DEBUG] session.user.id:", refreshedSession?.user?.id);
     console.log("🔍 [DELETE DEBUG] context user.id:", user?.id);
-    console.log("🔍 [DELETE DEBUG] access_token exists:", Boolean(accessToken));
     console.log("🔍 [DELETE DEBUG] msg.id:", msg?.id);
     console.log("🔍 [DELETE DEBUG] msg.user_id:", msg?.user_id);
     console.log("🔍 [DELETE DEBUG] msg.sender_type:", msg?.sender_type);
@@ -297,48 +318,18 @@ export default function SupportPage() {
     };
     console.log("🔍 [DELETE DEBUG] update payload:", updatePayload);
 
-    // 1) 기본 supabase 클라이언트로 1회 시도
-    // RLS가 auth.uid() = user_id를 이미 보장하므로 .eq("id", messageId)만 사용
-    let { error } = await supabase
+    // 삭제 쿼리는 단순 유지: update 1회 + id만 필터
+    const result = await supabase
       .from("support_ticket_replies")
       .update(updatePayload)
-      .eq("id", messageId);
+      .eq("id", messageId)
+      .select();
 
-    // 2) 같은 쿼리를 Authorization 헤더 강제 주입 클라이언트로 1회 더 시도 (토큰 미전달 여부 판정용)
-    if (error?.code === "42501" && accessToken) {
-      const supabaseAuthed = createClient<Database>(
-        import.meta.env.VITE_SUPABASE_URL,
-        import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-        {
-          global: {
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-            },
-          },
-          auth: {
-            persistSession: false,
-            autoRefreshToken: false,
-          },
-        }
-      );
+    console.log("[DELETE DEBUG] full result:", result);
+    console.log("[DELETE DEBUG] error JSON:", JSON.stringify(result.error, null, 2));
+    console.log("[DELETE DEBUG] data JSON:", JSON.stringify(result.data, null, 2));
 
-      const result = await supabaseAuthed
-        .from("support_ticket_replies")
-        .update(updatePayload)
-        .eq("id", messageId)
-        .select();
-
-      console.log("[DELETE DEBUG] full result:", result);
-      console.log("[DELETE DEBUG] error JSON:", JSON.stringify(result.error, null, 2));
-      console.log("[DELETE DEBUG] data JSON:", JSON.stringify(result.data, null, 2));
-
-      const authedError = result.error;
-
-      // authed 클라이언트로 성공하면, '토큰 미전달' 케이스로 판단하고 성공 처리
-      if (!authedError) {
-        error = null;
-      }
-    }
+    const error = result.error;
 
     if (error) {
       console.error("❌ [DELETE DEBUG] Error:", {
