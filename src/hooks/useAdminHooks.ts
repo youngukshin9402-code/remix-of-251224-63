@@ -278,6 +278,18 @@ export function useTicketsAdmin() {
         await updateStatus(ticketId, 'in_progress');
       }
 
+      // 사용자에게 알림 생성
+      if (ticket) {
+        await supabase.from('notifications').insert({
+          user_id: ticket.user_id,
+          type: 'support_reply',
+          title: '문의 답변이 등록되었습니다',
+          message: `'${ticket.subject}' 문의에 관리자 답변이 등록되었습니다.`,
+          related_id: ticketId,
+          related_type: 'support_ticket',
+        });
+      }
+
       toast({ title: '답변이 등록되었습니다' });
     } catch (error) {
       console.error('Error adding reply:', error);

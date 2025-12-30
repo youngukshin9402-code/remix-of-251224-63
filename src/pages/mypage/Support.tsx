@@ -147,17 +147,23 @@ export default function SupportPage() {
     }
 
     setSubmitting(true);
-    const { error } = await supabase.from("support_tickets").insert({
+    const { data, error } = await supabase.from("support_tickets").insert({
       user_id: user.id,
       subject: newTicket.subject,
       message: newTicket.message,
       status: "open",
-    });
+    }).select().single();
 
     if (error) {
       toast({ title: "문의 등록에 실패했습니다", variant: "destructive" });
     } else {
       toast({ title: "문의가 접수되었습니다" });
+      
+      // 관리자에게 알림 생성
+      if (data) {
+        await createNotificationForAdmin(data.id, `새 문의: ${newTicket.subject}`);
+      }
+      
       setNewTicket({ subject: "", message: "" });
       setActiveTab("tickets");
       fetchTickets();
@@ -207,8 +213,8 @@ export default function SupportPage() {
       for (const admin of adminUsers) {
         await supabase.from("notifications").insert({
           user_id: admin.user_id,
-          type: "support_reply",
-          title: "새 문의 답글",
+          type: "support_new",
+          title: "새 고객 문의",
           message: message,
           related_id: ticketId,
           related_type: "support_ticket",
