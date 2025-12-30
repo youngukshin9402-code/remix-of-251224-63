@@ -365,12 +365,16 @@ export default function SupportPage() {
   };
 
   // 삭제 확인 핸들러
-  const handleConfirmDelete = async () => {
-    if (deleteConfirmType === 'ticket') {
+  const handleConfirmDelete = async (
+    type: 'ticket' | 'reply',
+    id?: string
+  ) => {
+    if (type === 'ticket') {
       await handleDeleteTicket();
-    } else if (deleteConfirmType === 'reply' && deleteConfirmId) {
-      await handleDeleteMessage(deleteConfirmId);
+    } else if (type === 'reply' && id) {
+      await handleDeleteMessage(id);
     }
+
     setDeleteConfirmId(null);
     setDeleteConfirmType(null);
   };
@@ -586,10 +590,15 @@ export default function SupportPage() {
         </div>
 
         {/* 삭제 확인 다이얼로그 */}
-        <AlertDialog open={!!deleteConfirmType} onOpenChange={() => {
-          setDeleteConfirmId(null);
-          setDeleteConfirmType(null);
-        }}>
+        <AlertDialog
+          open={!!deleteConfirmType}
+          onOpenChange={(open) => {
+            if (!open) {
+              setDeleteConfirmId(null);
+              setDeleteConfirmType(null);
+            }
+          }}
+        >
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle className="flex items-center gap-2">
@@ -597,7 +606,7 @@ export default function SupportPage() {
                 {deleteConfirmType === 'ticket' ? '문의 삭제' : '메시지 삭제'}
               </AlertDialogTitle>
               <AlertDialogDescription>
-                {deleteConfirmType === 'ticket' 
+                {deleteConfirmType === 'ticket'
                   ? '이 문의를 삭제하시겠습니까? 삭제된 문의는 복구할 수 없습니다.'
                   : '이 메시지를 삭제하시겠습니까? 삭제된 메시지는 복구할 수 없습니다.'}
               </AlertDialogDescription>
@@ -606,7 +615,13 @@ export default function SupportPage() {
               <AlertDialogCancel>취소</AlertDialogCancel>
               <AlertDialogAction
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                onClick={handleConfirmDelete}
+                onClick={() => {
+                  // Radix가 먼저 닫히면서 onOpenChange가 상태를 초기화할 수 있어
+                  // 클릭 시점의 값을 캡처해서 넘깁니다.
+                  const type = deleteConfirmType;
+                  const id = deleteConfirmId;
+                  if (type) handleConfirmDelete(type, id ?? undefined);
+                }}
               >
                 삭제
               </AlertDialogAction>
