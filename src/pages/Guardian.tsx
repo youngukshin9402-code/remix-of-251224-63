@@ -62,14 +62,18 @@ export default function Guardian() {
   const { user, profile } = useAuth();
   const {
     connections,
-    pendingCode,
-    codeExpiresAt,
     isLoading,
-    generateConnectionCode,
-    connectWithCode,
+    pendingVerificationCode,
+    verificationExpiresAt,
+    generatePhoneVerificationCode,
+    connectWithPhoneVerification,
   } = useGuardianConnection();
+  
+  // 사용자 휴대전화 입력 상태
+  const [myPhone, setMyPhone] = useState("");
 
   const [inputCode, setInputCode] = useState("");
+  const [targetPhone, setTargetPhone] = useState("");
   const [isConnecting, setIsConnecting] = useState(false);
   const [copied, setCopied] = useState(false);
   
@@ -329,20 +333,32 @@ export default function Guardian() {
   }, [isGuardian, user, connections]);
 
   const handleCopyCode = async () => {
-    if (pendingCode) {
-      await navigator.clipboard.writeText(pendingCode);
+    if (pendingVerificationCode) {
+      await navigator.clipboard.writeText(pendingVerificationCode);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
   };
 
+  const handleGenerateCode = async () => {
+    if (!myPhone || myPhone.length < 10) {
+      return;
+    }
+    await generatePhoneVerificationCode(myPhone);
+  };
+
   const handleConnect = async () => {
-    if (!inputCode.trim() || inputCode.length !== 6) return;
+    if (!inputCode.trim() || inputCode.length !== 6 || !targetPhone || targetPhone.length < 10) return;
 
     setIsConnecting(true);
-    await connectWithCode(inputCode);
+    await connectWithPhoneVerification(targetPhone, inputCode);
     setInputCode("");
+    setTargetPhone("");
     setIsConnecting(false);
+  };
+
+  const formatPhoneNumber = (value: string) => {
+    return value.replace(/\D/g, "").slice(0, 11);
   };
 
   // Get active connections (excluding pending ones)
@@ -656,88 +672,128 @@ export default function Guardian() {
         </div>
       )}
 
-      {/* 사용자용: 연결 코드 생성 */}
+      {/* 사용자용: 휴대전화 인증 코드 생성 */}
       {!isGuardian && (
         <div className="bg-card rounded-3xl border border-border p-6">
           <div className="flex items-center gap-3 mb-4">
             <Link2 className="w-6 h-6 text-primary" />
-            <h2 className="text-xl font-semibold">연결 코드 만들기</h2>
+            <h2 className="text-xl font-semibold">보호자 연결하기</h2>
           </div>
           <p className="text-muted-foreground mb-6">
-            연결 코드를 만들어 보호자(자녀)에게 전달해주세요.
+            휴대전화 인증으로 안전하게 보호자와 연결하세요.
             <br />
-            보호자가 코드를 입력하면 연결이 완료됩니다.
+            인증 코드와 휴대전화 번호를 보호자에게 전달해주세요.
           </p>
 
-          {pendingCode ? (
-            <div className="space-y-4">
-              <div className="flex items-center justify-center gap-2 p-6 bg-muted rounded-2xl">
-                <span className="text-4xl font-mono font-bold tracking-widest text-primary">
-                  {pendingCode}
-                </span>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">내 휴대전화 번호</label>
+              <Input
+                type="tel"
+                placeholder="01012345678"
+                value={myPhone}
+                onChange={(e) => setMyPhone(formatPhoneNumber(e.target.value))}
+                maxLength={11}
+                className="h-14 text-lg"
+              />
+            </div>
+            
+            {pendingVerificationCode ? (
+              <div className="space-y-4">
+                <div className="bg-primary/5 rounded-2xl p-6 text-center">
+                  <p className="text-sm text-muted-foreground mb-2">인증 코드</p>
+                  <span className="text-4xl font-mono font-bold tracking-widest text-primary">
+                    {pendingVerificationCode}
+                  </span>
+                  {verificationExpiresAt && (
+                    <p className="text-sm text-muted-foreground mt-2 flex items-center justify-center gap-1">
+                      <Clock className="w-4 h-4" />
+                      {format(verificationExpiresAt, "HH:mm", { locale: ko })}까지 유효
+                    </p>
+                  )}
+                </div>
+                <div className="bg-amber-50 dark:bg-amber-950/30 rounded-xl p-4">
+                  <p className="text-sm text-amber-700 dark:text-amber-400">
+                    <strong>보호자에게 전달하세요:</strong><br />
+                    1. 내 휴대전화 번호: {myPhone}<br />
+                    2. 인증 코드: {pendingVerificationCode}
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="w-full h-14"
+                  onClick={handleCopyCode}
+                >
+                  {copied ? (
+                    <>
+                      <Check className="w-5 h-5 text-emerald-500" />
+                      복사됨
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-5 h-5" />
+                      인증 코드 복사
+                    </>
+                  )}
+                </Button>
               </div>
+            ) : (
               <Button
-                variant="outline"
                 size="lg"
                 className="w-full h-14"
-                onClick={handleCopyCode}
+                onClick={handleGenerateCode}
+                disabled={!myPhone || myPhone.length < 10}
               >
-                {copied ? (
-                  <>
-                    <Check className="w-5 h-5 text-emerald-500" />
-                    복사됨
-                  </>
-                ) : (
-                  <>
-                    <Copy className="w-5 h-5" />
-                    코드 복사
-                  </>
-                )}
+                <Link2 className="w-5 h-5" />
+                인증 코드 생성하기
               </Button>
-              {codeExpiresAt && (
-                <p className="text-sm text-center text-muted-foreground flex items-center justify-center gap-1">
-                  <Clock className="w-4 h-4" />
-                  {format(codeExpiresAt, "M월 d일 HH:mm", { locale: ko })}까지 유효
-                </p>
-              )}
-            </div>
-          ) : (
-            <Button
-              size="lg"
-              className="w-full h-14"
-              onClick={generateConnectionCode}
-            >
-              <Link2 className="w-5 h-5" />
-              연결 코드 생성하기
-            </Button>
-          )}
+            )}
+            <p className="text-xs text-muted-foreground text-center">
+              인증 코드는 5분간 유효합니다
+            </p>
+          </div>
         </div>
       )}
 
-      {/* 보호자용: 코드 입력 */}
+      {/* 보호자용: 휴대전화 번호 + 인증 코드 입력 */}
       {isGuardian && (
         <div className="bg-card rounded-3xl border border-border p-6">
           <div className="flex items-center gap-3 mb-4">
             <UserPlus className="w-6 h-6 text-primary" />
-            <h2 className="text-xl font-semibold">부모님과 연결하기</h2>
+            <h2 className="text-xl font-semibold">가족과 연결하기</h2>
           </div>
           <p className="text-muted-foreground mb-6">
-            부모님이 만든 연결 코드를 입력해주세요.
+            가족에게 받은 휴대전화 번호와 인증 코드를 입력해주세요.
           </p>
 
           <div className="space-y-4">
-            <Input
-              placeholder="6자리 코드 입력"
-              value={inputCode}
-              onChange={(e) => setInputCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-              className="h-16 text-2xl text-center font-mono tracking-widest"
-              maxLength={6}
-            />
+            <div className="space-y-2">
+              <label className="text-sm font-medium">가족 휴대전화 번호</label>
+              <Input
+                type="tel"
+                placeholder="01012345678"
+                value={targetPhone}
+                onChange={(e) => setTargetPhone(formatPhoneNumber(e.target.value))}
+                maxLength={11}
+                className="h-14 text-lg"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">인증 코드 (6자리)</label>
+              <Input
+                placeholder="인증 코드 6자리"
+                value={inputCode}
+                onChange={(e) => setInputCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                className="h-16 text-2xl text-center font-mono tracking-widest"
+                maxLength={6}
+              />
+            </div>
             <Button
               size="lg"
               className="w-full h-14"
               onClick={handleConnect}
-              disabled={inputCode.length !== 6 || isConnecting}
+              disabled={inputCode.length !== 6 || !targetPhone || targetPhone.length < 10 || isConnecting}
             >
               {isConnecting ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
