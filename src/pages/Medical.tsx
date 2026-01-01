@@ -843,75 +843,48 @@ function InBodySection() {
           {!isAnalyzing && (inputMode === 'manual' || uploadedImage) && (
             <div className="space-y-4 py-2">
               <div className="space-y-2">
-                <label className="text-sm font-medium">날짜 *</label>
+                <label className="text-sm font-medium">날짜</label>
                 <Input type="date" value={formData.date} onChange={e => setFormData({ ...formData, date: e.target.value })} />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">체중 (kg) *</label>
-                  <Input type="number" step="0.1" placeholder="65.0" value={formData.weight || ''} onChange={e => setFormData({ ...formData, weight: parseFloat(e.target.value) || 0 })} />
+                  <label className="text-sm font-medium">체중 (kg)</label>
+                  <Input type="number" step="0.1" value={formData.weight || ''} onChange={e => setFormData({ ...formData, weight: parseFloat(e.target.value) || 0 })} />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">골격근량 (kg)</label>
-                  <Input type="number" step="0.1" placeholder="28.0" value={formData.skeletal_muscle ?? ''} onChange={e => setFormData({ ...formData, skeletal_muscle: e.target.value ? parseFloat(e.target.value) : null })} />
+                  <Input type="number" step="0.1" value={formData.skeletal_muscle ?? ''} onChange={e => setFormData({ ...formData, skeletal_muscle: e.target.value ? parseFloat(e.target.value) : null })} />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">체지방률 (%)</label>
-                  <Input type="number" step="0.1" placeholder="18.5" value={formData.body_fat_percent ?? ''} onChange={e => setFormData({ ...formData, body_fat_percent: e.target.value ? parseFloat(e.target.value) : null })} />
+                  <Input type="number" step="0.1" value={formData.body_fat_percent ?? ''} onChange={e => setFormData({ ...formData, body_fat_percent: e.target.value ? parseFloat(e.target.value) : null })} />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">기초대사량</label>
-                  <Input type="number" placeholder="1450" value={formData.bmr ?? ''} onChange={e => setFormData({ ...formData, bmr: e.target.value ? parseInt(e.target.value) : null })} />
+                  <Input type="number" value={formData.bmr ?? ''} onChange={e => setFormData({ ...formData, bmr: e.target.value ? parseInt(e.target.value) : null })} />
                 </div>
               </div>
               
               {/* 내장지방 레벨 & VFA 필드 */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">
-                    내장지방 레벨
-                    <span className="text-destructive ml-1">*</span>
-                  </label>
+                  <label className="text-sm font-medium">내장지방 레벨</label>
                   <Input 
                     type="number" 
-                    placeholder="8" 
                     value={formData.visceral_fat ?? ''} 
                     onChange={e => setFormData({ ...formData, visceral_fat: e.target.value ? parseInt(e.target.value) : null })} 
                   />
-                  <p className="text-xs text-muted-foreground">레벨 미입력시 VFA로 자동 계산</p>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">
-                    VFA (cm²)
-                    <span className="text-destructive ml-1">*</span>
-                  </label>
+                  <label className="text-sm font-medium">내장지방 단면적(VFA)</label>
                   <Input 
                     type="number" 
                     step="0.1"
-                    placeholder="55.0" 
                     value={formData.vfa ?? ''} 
                     onChange={e => setFormData({ ...formData, vfa: e.target.value ? parseFloat(e.target.value) : null })} 
                   />
-                  <p className="text-xs text-muted-foreground">
-                    {formData.vfa && (!formData.visceral_fat || formData.visceral_fat === 0) ? (
-                      <span className="text-primary">→ 레벨 {convertVfaToVisceralFat(formData.vfa)}로 환산됨</span>
-                    ) : (
-                      "VFA÷10 올림으로 레벨 환산"
-                    )}
-                  </p>
                 </div>
               </div>
-
-              {/* 필수 입력 안내 */}
-              {(formData.visceral_fat === null || formData.visceral_fat === 0) && 
-               (formData.vfa === null || formData.vfa === 0) && (
-                <div className="flex items-center gap-2 p-2 bg-amber-500/10 border border-amber-500/30 rounded-lg">
-                  <AlertCircle className="w-4 h-4 text-amber-600" />
-                  <p className="text-xs text-amber-700">
-                    내장지방 레벨 또는 VFA 중 하나는 필수 입력입니다
-                  </p>
-                </div>
-              )}
             </div>
           )}
 
