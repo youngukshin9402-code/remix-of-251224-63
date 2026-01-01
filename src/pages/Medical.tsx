@@ -840,27 +840,27 @@ function InBodySection() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <label className="text-sm font-medium">체중 (kg) *</label>
-                  <Input type="number" step="0.1" placeholder="65.0" value={formData.weight || ''} onChange={e => setFormData({ ...formData, weight: parseFloat(e.target.value) || 0 })} />
+                  <Input type="number" step="0.1" value={formData.weight || ''} onChange={e => setFormData({ ...formData, weight: parseFloat(e.target.value) || 0 })} />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">골격근량 (kg)</label>
-                  <Input type="number" step="0.1" placeholder="28.0" value={formData.skeletal_muscle ?? ''} onChange={e => setFormData({ ...formData, skeletal_muscle: e.target.value ? parseFloat(e.target.value) : null })} />
+                  <Input type="number" step="0.1" value={formData.skeletal_muscle ?? ''} onChange={e => setFormData({ ...formData, skeletal_muscle: e.target.value ? parseFloat(e.target.value) : null })} />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">체지방률 (%)</label>
-                  <Input type="number" step="0.1" placeholder="18.5" value={formData.body_fat_percent ?? ''} onChange={e => setFormData({ ...formData, body_fat_percent: e.target.value ? parseFloat(e.target.value) : null })} />
+                  <Input type="number" step="0.1" value={formData.body_fat_percent ?? ''} onChange={e => setFormData({ ...formData, body_fat_percent: e.target.value ? parseFloat(e.target.value) : null })} />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">기초대사량</label>
-                  <Input type="number" placeholder="1450" value={formData.bmr ?? ''} onChange={e => setFormData({ ...formData, bmr: e.target.value ? parseInt(e.target.value) : null })} />
+                  <Input type="number" value={formData.bmr ?? ''} onChange={e => setFormData({ ...formData, bmr: e.target.value ? parseInt(e.target.value) : null })} />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">내장지방 레벨</label>
-                  <Input type="number" placeholder="8" min="1" max="20" value={formData.visceral_fat ?? ''} onChange={e => setFormData({ ...formData, visceral_fat: e.target.value ? parseInt(e.target.value) : null })} />
+                  <Input type="number" min="1" max="20" value={formData.visceral_fat ?? ''} onChange={e => setFormData({ ...formData, visceral_fat: e.target.value ? parseInt(e.target.value) : null })} />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">내장지방 단면적(VFA)</label>
-                  <Input type="number" step="0.1" placeholder="34.1" value={formData.visceral_fat_area ?? ''} onChange={e => setFormData({ ...formData, visceral_fat_area: e.target.value ? parseFloat(e.target.value) : null })} />
+                  <Input type="number" step="0.1" value={formData.visceral_fat_area ?? ''} onChange={e => setFormData({ ...formData, visceral_fat_area: e.target.value ? parseFloat(e.target.value) : null })} />
                 </div>
               </div>
             </div>
