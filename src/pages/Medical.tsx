@@ -133,24 +133,7 @@ function InBodySection() {
     body_fat_percent: null as number | null,
     bmr: null as number | null,
     visceral_fat: null as number | null,
-    vfa: null as number | null, // 내장지방 단면적 (cm²)
   });
-
-  // VFA를 내장지방 레벨로 변환 (VFA / 10 후 올림)
-  const convertVfaToVisceralFat = (vfa: number): number => {
-    return Math.ceil(vfa / 10);
-  };
-
-  // 최종 내장지방 레벨 계산 (레벨 우선, 없으면 VFA로 변환)
-  const getFinalVisceralFatLevel = (visceralFat: number | null, vfa: number | null): number | null => {
-    if (visceralFat !== null && visceralFat > 0) {
-      return visceralFat;
-    }
-    if (vfa !== null && vfa > 0) {
-      return convertVfaToVisceralFat(vfa);
-    }
-    return null;
-  };
 
   // 사진 AI 분석 관련 상태
   const [inputMode, setInputMode] = useState<'manual' | 'photo'>('manual');
@@ -353,20 +336,12 @@ function InBodySection() {
       toast.error("체중과 날짜는 필수입니다");
       return;
     }
-    
     if (isSaving) return;
-
-    // 최종 내장지방 레벨 계산
-    const finalVisceralFat = getFinalVisceralFatLevel(formData.visceral_fat, formData.vfa);
-    const saveData = {
-      ...formData,
-      visceral_fat: finalVisceralFat,
-    };
 
     setIsSaving(true);
     try {
       if (editingId) {
-        const result = await update(editingId, saveData);
+        const result = await update(editingId, formData);
         if (result.error) {
           toast.error("수정 실패: " + (result.error.message || "네트워크 오류"));
         } else {
@@ -375,7 +350,7 @@ function InBodySection() {
           resetForm();
         }
       } else {
-        const result = await add(saveData);
+        const result = await add(formData);
         if (result.error) {
           toast.error("저장 실패: " + (result.error.message || "네트워크 오류"));
         } else {
@@ -401,7 +376,6 @@ function InBodySection() {
       body_fat_percent: record.body_fat_percent ? Number(record.body_fat_percent) : null,
       bmr: record.bmr,
       visceral_fat: record.visceral_fat,
-      vfa: null, // 기존 기록에서는 VFA가 별도로 저장되지 않음
     });
     setInputMode('manual');
     setDialogOpen(true);
@@ -442,7 +416,6 @@ function InBodySection() {
       body_fat_percent: null,
       bmr: null,
       visceral_fat: null,
-      vfa: null,
     });
     setUploadedImage(null);
     setAiPrefilled(false);
@@ -836,46 +809,25 @@ function InBodySection() {
           {!isAnalyzing && (inputMode === 'manual' || uploadedImage) && (
             <div className="space-y-4 py-2">
               <div className="space-y-2">
-                <label className="text-sm font-medium">날짜</label>
+                <label className="text-sm font-medium">날짜 *</label>
                 <Input type="date" value={formData.date} onChange={e => setFormData({ ...formData, date: e.target.value })} />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">체중 (kg)</label>
-                  <Input type="number" step="0.1" value={formData.weight || ''} onChange={e => setFormData({ ...formData, weight: parseFloat(e.target.value) || 0 })} />
+                  <label className="text-sm font-medium">체중 (kg) *</label>
+                  <Input type="number" step="0.1" placeholder="65.0" value={formData.weight || ''} onChange={e => setFormData({ ...formData, weight: parseFloat(e.target.value) || 0 })} />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">골격근량 (kg)</label>
-                  <Input type="number" step="0.1" value={formData.skeletal_muscle ?? ''} onChange={e => setFormData({ ...formData, skeletal_muscle: e.target.value ? parseFloat(e.target.value) : null })} />
+                  <Input type="number" step="0.1" placeholder="28.0" value={formData.skeletal_muscle ?? ''} onChange={e => setFormData({ ...formData, skeletal_muscle: e.target.value ? parseFloat(e.target.value) : null })} />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">체지방률 (%)</label>
-                  <Input type="number" step="0.1" value={formData.body_fat_percent ?? ''} onChange={e => setFormData({ ...formData, body_fat_percent: e.target.value ? parseFloat(e.target.value) : null })} />
+                  <Input type="number" step="0.1" placeholder="18.5" value={formData.body_fat_percent ?? ''} onChange={e => setFormData({ ...formData, body_fat_percent: e.target.value ? parseFloat(e.target.value) : null })} />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">기초대사량</label>
-                  <Input type="number" value={formData.bmr ?? ''} onChange={e => setFormData({ ...formData, bmr: e.target.value ? parseInt(e.target.value) : null })} />
-                </div>
-              </div>
-              
-              {/* 내장지방 레벨 & VFA 필드 */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">내장지방 레벨</label>
-                  <Input 
-                    type="number" 
-                    value={formData.visceral_fat ?? ''} 
-                    onChange={e => setFormData({ ...formData, visceral_fat: e.target.value ? parseInt(e.target.value) : null })} 
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">내장지방 단면적(VFA)</label>
-                  <Input 
-                    type="number" 
-                    step="0.1"
-                    value={formData.vfa ?? ''} 
-                    onChange={e => setFormData({ ...formData, vfa: e.target.value ? parseFloat(e.target.value) : null })} 
-                  />
+                  <Input type="number" placeholder="1450" value={formData.bmr ?? ''} onChange={e => setFormData({ ...formData, bmr: e.target.value ? parseInt(e.target.value) : null })} />
                 </div>
               </div>
             </div>
