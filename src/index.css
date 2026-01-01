@@ -13,6 +13,17 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Hide number input spinners */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
 @layer base {
   :root {
     /* 양갱 테마 - 따뜻한 호박색/황금색 */
