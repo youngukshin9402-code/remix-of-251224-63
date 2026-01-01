@@ -133,7 +133,24 @@ function InBodySection() {
     body_fat_percent: null as number | null,
     bmr: null as number | null,
     visceral_fat: null as number | null,
+    vfa: null as number | null, // 내장지방 단면적 (cm²)
   });
+
+  // VFA를 내장지방 레벨로 변환 (VFA / 10 후 올림)
+  const convertVfaToVisceralFat = (vfa: number): number => {
+    return Math.ceil(vfa / 10);
+  };
+
+  // 최종 내장지방 레벨 계산 (레벨 우선, 없으면 VFA로 변환)
+  const getFinalVisceralFatLevel = (visceralFat: number | null, vfa: number | null): number | null => {
+    if (visceralFat !== null && visceralFat > 0) {
+      return visceralFat;
+    }
+    if (vfa !== null && vfa > 0) {
+      return convertVfaToVisceralFat(vfa);
+    }
+    return null;
+  };
 
   // 사진 AI 분석 관련 상태
   const [inputMode, setInputMode] = useState<'manual' | 'photo'>('manual');
@@ -336,12 +353,27 @@ function InBodySection() {
       toast.error("체중과 날짜는 필수입니다");
       return;
     }
+    
+    // 내장지방 레벨 또는 VFA 중 하나는 필수 검증
+    if ((formData.visceral_fat === null || formData.visceral_fat === 0) && 
+        (formData.vfa === null || formData.vfa === 0)) {
+      toast.error("내장지방 레벨 또는 VFA 중 하나는 입력해야 합니다");
+      return;
+    }
+    
     if (isSaving) return;
+
+    // 최종 내장지방 레벨 계산
+    const finalVisceralFat = getFinalVisceralFatLevel(formData.visceral_fat, formData.vfa);
+    const saveData = {
+      ...formData,
+      visceral_fat: finalVisceralFat,
+    };
 
     setIsSaving(true);
     try {
       if (editingId) {
-        const result = await update(editingId, formData);
+        const result = await update(editingId, saveData);
         if (result.error) {
           toast.error("수정 실패: " + (result.error.message || "네트워크 오류"));
         } else {
@@ -350,7 +382,7 @@ function InBodySection() {
           resetForm();
         }
       } else {
-        const result = await add(formData);
+        const result = await add(saveData);
         if (result.error) {
           toast.error("저장 실패: " + (result.error.message || "네트워크 오류"));
         } else {
@@ -376,6 +408,7 @@ function InBodySection() {
       body_fat_percent: record.body_fat_percent ? Number(record.body_fat_percent) : null,
       bmr: record.bmr,
       visceral_fat: record.visceral_fat,
+      vfa: null, // 기존 기록에서는 VFA가 별도로 저장되지 않음
     });
     setInputMode('manual');
     setDialogOpen(true);
@@ -416,6 +449,7 @@ function InBodySection() {
       body_fat_percent: null,
       bmr: null,
       visceral_fat: null,
+      vfa: null,
     });
     setUploadedImage(null);
     setAiPrefilled(false);
@@ -830,6 +864,54 @@ function InBodySection() {
                   <Input type="number" placeholder="1450" value={formData.bmr ?? ''} onChange={e => setFormData({ ...formData, bmr: e.target.value ? parseInt(e.target.value) : null })} />
                 </div>
               </div>
+              
+              {/* 내장지방 레벨 & VFA 필드 */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">
+                    내장지방 레벨
+                    <span className="text-destructive ml-1">*</span>
+                  </label>
+                  <Input 
+                    type="number" 
+                    placeholder="8" 
+                    value={formData.visceral_fat ?? ''} 
+                    onChange={e => setFormData({ ...formData, visceral_fat: e.target.value ? parseInt(e.target.value) : null })} 
+                  />
+                  <p className="text-xs text-muted-foreground">레벨 미입력시 VFA로 자동 계산</p>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">
+                    VFA (cm²)
+                    <span className="text-destructive ml-1">*</span>
+                  </label>
+                  <Input 
+                    type="number" 
+                    step="0.1"
+                    placeholder="55.0" 
+                    value={formData.vfa ?? ''} 
+                    onChange={e => setFormData({ ...formData, vfa: e.target.value ? parseFloat(e.target.value) : null })} 
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {formData.vfa && (!formData.visceral_fat || formData.visceral_fat === 0) ? (
+                      <span className="text-primary">→ 레벨 {convertVfaToVisceralFat(formData.vfa)}로 환산됨</span>
+                    ) : (
+                      "VFA÷10 올림으로 레벨 환산"
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              {/* 필수 입력 안내 */}
+              {(formData.visceral_fat === null || formData.visceral_fat === 0) && 
+               (formData.vfa === null || formData.vfa === 0) && (
+                <div className="flex items-center gap-2 p-2 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                  <AlertCircle className="w-4 h-4 text-amber-600" />
+                  <p className="text-xs text-amber-700">
+                    내장지방 레벨 또는 VFA 중 하나는 필수 입력입니다
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
