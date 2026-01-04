@@ -264,6 +264,44 @@ export type Database = {
           },
         ]
       }
+      coach_notification_settings: {
+        Row: {
+          chat_message: boolean | null
+          coach_id: string
+          created_at: string
+          health_checkup_upload: boolean | null
+          id: string
+          inbody_upload: boolean | null
+          updated_at: string
+        }
+        Insert: {
+          chat_message?: boolean | null
+          coach_id: string
+          created_at?: string
+          health_checkup_upload?: boolean | null
+          id?: string
+          inbody_upload?: boolean | null
+          updated_at?: string
+        }
+        Update: {
+          chat_message?: boolean | null
+          coach_id?: string
+          created_at?: string
+          health_checkup_upload?: boolean | null
+          id?: string
+          inbody_upload?: boolean | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coach_notification_settings_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       coaching_feedback: {
         Row: {
           audio_url: string | null
@@ -304,6 +342,54 @@ export type Database = {
             columns: ["session_id"]
             isOneToOne: false
             referencedRelation: "coaching_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coaching_records: {
+        Row: {
+          coach_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          session_date: string
+          session_time: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          coach_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          session_date?: string
+          session_time: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          coach_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          session_date?: string
+          session_time?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coaching_records_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coaching_records_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]

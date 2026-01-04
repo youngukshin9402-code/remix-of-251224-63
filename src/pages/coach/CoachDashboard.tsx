@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { useCoachData } from "@/hooks/useCoachData";
+import { useCoachNotifications } from "@/hooks/useCoachNotifications";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,20 +12,23 @@ import { Badge } from "@/components/ui/badge";
 import { CoachFeedbackForm } from "@/components/CoachFeedbackForm";
 import { WeeklyMetricsCard } from "@/components/coach/WeeklyMetricsCard";
 import { CheckinReportTimeline } from "@/components/coach/CheckinReportTimeline";
+import { CoachNotificationSettingsDialog } from "@/components/coach/CoachNotificationSettingsDialog";
+import { PendingReviewsDialog } from "@/components/coach/PendingReviewsDialog";
+import { CoachingRecordsDialog } from "@/components/coach/CoachingRecordsDialog";
+import { ChatPopupDialog } from "@/components/coach/ChatPopupDialog";
+import { UserActivityDialog } from "@/components/coach/UserActivityDialog";
 import {
   Users,
   Search,
-  Video,
   FileText,
   AlertCircle,
   Clock,
   MessageSquare,
   BarChart3,
   ClipboardCheck,
-  Flame,
-  Droplets,
-  Dumbbell,
-  Scale,
+  Bell,
+  Video,
+  LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -35,43 +39,39 @@ export default function CoachDashboard() {
   const { profile, user, signOut } = useAuth();
   const navigate = useNavigate();
   const { assignedUsers, pendingReviews, todaySessions, loading } = useCoachData();
+  
+  // 알림 훅 활성화
+  useCoachNotifications();
+  
   const [searchQuery, setSearchQuery] = useState("");
   const [feedbackUserId, setFeedbackUserId] = useState<string | null>(null);
   const [feedbackUserNickname, setFeedbackUserNickname] = useState<string>("");
+  
+  // 다이얼로그 상태
+  const [showNotificationSettings, setShowNotificationSettings] = useState(false);
+  const [showPendingReviews, setShowPendingReviews] = useState(false);
+  const [showCoachingRecords, setShowCoachingRecords] = useState(false);
+  
+  // 채팅 팝업 상태
+  const [chatUserId, setChatUserId] = useState<string | null>(null);
+  const [chatUserNickname, setChatUserNickname] = useState<string>("");
+  
+  // 활동 카드 다이얼로그 상태
+  const [activityUserId, setActivityUserId] = useState<string | null>(null);
+  const [activityUserNickname, setActivityUserNickname] = useState<string>("");
 
   const filteredUsers = assignedUsers.filter((user) =>
     user.nickname?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "good":
-        return "text-emerald-600 bg-emerald-100";
-      case "caution":
-        return "text-amber-600 bg-amber-100";
-      case "warning":
-        return "text-red-600 bg-red-100";
-      default:
-        return "text-muted-foreground bg-muted";
-    }
-  };
-
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case "good":
-        return "양호";
-      case "caution":
-        return "주의";
-      case "warning":
-        return "관리";
-      default:
-        return "-";
-    }
-  };
-
   const openFeedbackForm = (userId: string, nickname: string) => {
     setFeedbackUserId(userId);
     setFeedbackUserNickname(nickname || "사용자");
+  };
+
+  const openChatPopup = (userId: string, nickname: string) => {
+    setChatUserId(userId);
+    setChatUserNickname(nickname || "사용자");
   };
 
   if (loading) {
@@ -94,29 +94,37 @@ export default function CoachDashboard() {
     <div className="min-h-screen bg-background">
       {/* 헤더 */}
       <header className="sticky top-0 z-40 bg-background border-b border-border">
-        <div className="container mx-auto px-4 md:px-6 py-3 md:py-0 md:h-16 flex flex-col md:flex-row md:items-center justify-between gap-2 md:gap-0">
+        <div className="container mx-auto px-4 md:px-6 py-3 md:py-0 md:h-16 flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold text-foreground">
               <span className="md:hidden">코치<br />대시보드</span>
               <span className="hidden md:inline">코치 대시보드</span>
             </h1>
-            <p className="text-sm text-muted-foreground mt-2 md:mt-0">
+            <p className="text-sm text-muted-foreground mt-1 md:mt-0">
               {profile?.nickname}님, 환영합니다
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={() => setShowNotificationSettings(true)}
+              className="relative"
+            >
+              <Bell className="w-5 h-5" />
+            </Button>
             <Button variant="outline" size="sm" onClick={() => navigate('/coach/chat')}>
               <MessageSquare className="w-4 h-4 mr-2" />
-              채팅
+              <span className="hidden sm:inline">채팅</span>
             </Button>
-            <Button variant="ghost" size="sm" onClick={signOut}>
-              로그아웃
+            <Button variant="ghost" size="icon" onClick={signOut} title="로그아웃">
+              <LogOut className="w-5 h-5" />
             </Button>
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-6 py-8 space-y-8">
+      <main className="container mx-auto px-4 md:px-6 py-6 space-y-6">
         {/* 요약 카드 */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-card rounded-2xl border border-border p-6">
@@ -129,7 +137,10 @@ export default function CoachDashboard() {
             </p>
           </div>
 
-          <div className="bg-card rounded-2xl border border-border p-6">
+          <button 
+            className="bg-card rounded-2xl border border-border p-6 text-left hover:bg-muted/50 transition-colors cursor-pointer"
+            onClick={() => setShowPendingReviews(true)}
+          >
             <div className="flex items-center gap-3 mb-2">
               <FileText className="w-5 h-5 text-amber-600" />
               <span className="text-muted-foreground">검토 대기</span>
@@ -137,43 +148,39 @@ export default function CoachDashboard() {
             <p className="text-3xl font-bold text-amber-600">
               {pendingReviews.length}건
             </p>
-          </div>
+          </button>
 
-          <div className="bg-card rounded-2xl border border-border p-6">
+          <button 
+            className="bg-card rounded-2xl border border-border p-6 text-left hover:bg-muted/50 transition-colors cursor-pointer"
+            onClick={() => setShowCoachingRecords(true)}
+          >
             <div className="flex items-center gap-3 mb-2">
               <Video className="w-5 h-5 text-sky-600" />
               <span className="text-muted-foreground">오늘 코칭</span>
             </div>
             <p className="text-3xl font-bold text-sky-600">{todaySessions.length}건</p>
-          </div>
+          </button>
         </div>
 
         {/* 검토 대기 알림 */}
         {pendingReviews.length > 0 && (
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center gap-4">
+          <button 
+            className="w-full bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center gap-4 text-left hover:bg-amber-100/50 transition-colors"
+            onClick={() => setShowPendingReviews(true)}
+          >
             <AlertCircle className="w-6 h-6 text-amber-600 flex-shrink-0" />
             <div className="flex-1">
               <p className="font-medium text-amber-800">
                 검토가 필요한 건강검진 결과가 {pendingReviews.length}건 있어요
               </p>
               <p className="text-sm text-amber-600">
-                회원들이 결과를 기다리고 있어요.
+                클릭하여 검토 항목을 확인하세요
               </p>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                const first = pendingReviews[0];
-                if (first) navigate(`/coach/user/${first.user_id}`);
-              }}
-            >
-              검토하기
-            </Button>
-          </div>
+          </button>
         )}
 
-        {/* 담당 회원 리스트 (섹션 위치: 요약 카드 바로 아래) */}
+        {/* 담당 회원 리스트 */}
         <div>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
             <h2 className="text-xl font-semibold whitespace-nowrap">담당 회원</h2>
@@ -232,16 +239,9 @@ export default function CoachDashboard() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => openFeedbackForm(user.id, user.nickname || "")}
+                        onClick={() => openChatPopup(user.id, user.nickname || "")}
                       >
                         <MessageSquare className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="default"
-                        size="sm"
-                        onClick={() => navigate(`/video-call/new?userId=${user.id}`)}
-                      >
-                        <Video className="w-4 h-4" />
                       </Button>
                     </div>
                   </div>
@@ -302,16 +302,9 @@ export default function CoachDashboard() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => openFeedbackForm(user.id, user.nickname || "")}
+                            onClick={() => openChatPopup(user.id, user.nickname || "")}
                           >
                             <MessageSquare className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="default"
-                            size="sm"
-                            onClick={() => navigate(`/video-call/new?userId=${user.id}`)}
-                          >
-                            <Video className="w-4 h-4" />
                           </Button>
                         </div>
                       </td>
@@ -348,7 +341,13 @@ export default function CoachDashboard() {
             <ClipboardCheck className="w-5 h-5 text-primary" />
             <h2 className="text-xl font-semibold">오늘의 활동 카드</h2>
           </div>
-          <CheckinReportTimeline limit={30} />
+          <CheckinReportTimeline 
+            limit={30}
+            onUserClick={(userId, nickname) => {
+              setActivityUserId(userId);
+              setActivityUserNickname(nickname);
+            }}
+          />
         </div>
 
         {/* 피드백 작성 폼 */}
@@ -361,6 +360,44 @@ export default function CoachDashboard() {
           />
         )}
       </main>
+
+      {/* 알림 설정 다이얼로그 */}
+      <CoachNotificationSettingsDialog
+        open={showNotificationSettings}
+        onOpenChange={setShowNotificationSettings}
+      />
+
+      {/* 검토 대기 다이얼로그 */}
+      <PendingReviewsDialog
+        open={showPendingReviews}
+        onOpenChange={setShowPendingReviews}
+      />
+
+      {/* 코칭 기록 다이얼로그 */}
+      <CoachingRecordsDialog
+        open={showCoachingRecords}
+        onOpenChange={setShowCoachingRecords}
+      />
+
+      {/* 채팅 팝업 다이얼로그 */}
+      {chatUserId && (
+        <ChatPopupDialog
+          open={!!chatUserId}
+          onOpenChange={(open) => !open && setChatUserId(null)}
+          userId={chatUserId}
+          userNickname={chatUserNickname}
+        />
+      )}
+
+      {/* 활동 카드 다이얼로그 */}
+      {activityUserId && (
+        <UserActivityDialog
+          open={!!activityUserId}
+          onOpenChange={(open) => !open && setActivityUserId(null)}
+          userId={activityUserId}
+          userNickname={activityUserNickname}
+        />
+      )}
     </div>
   );
 }
