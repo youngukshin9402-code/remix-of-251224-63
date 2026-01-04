@@ -192,37 +192,49 @@ export function CheckinReportCard({ report, compact = false }: CheckinReportCard
             <div className="bg-rose-50 dark:bg-rose-950/20 rounded-xl p-3 space-y-2">
               <div className="flex items-center gap-2 text-sm font-medium text-rose-700 dark:text-rose-300">
                 <Heart className="w-4 h-4" />
-                건강 기록 (최근 1건)
+                건강 기록
               </div>
-              {snapshot?.health ? (
-                <div className="space-y-1 text-sm">
+              <div className="space-y-1 text-sm">
+                {/* 인바디 기반 건강나이 (home.healthAge에서 가져옴) */}
+                {snapshot?.home?.healthAge?.health ? (
                   <div className="flex items-center gap-2">
-                    <span className="text-muted-foreground">검진일:</span>
-                    <span className="font-medium">
-                      {snapshot.health.exam_date 
-                        ? format(new Date(snapshot.health.exam_date), 'yyyy.MM.dd') 
-                        : '-'}
+                    <span className="text-muted-foreground">건강나이:</span>
+                    <span className="font-medium text-rose-700 dark:text-rose-300">
+                      {snapshot.home.healthAge.health}세
                     </span>
+                    {snapshot.home.healthAge.actual && (
+                      <span className="text-xs text-muted-foreground">
+                        (실제 {snapshot.home.healthAge.actual}세)
+                      </span>
+                    )}
                   </div>
-                  {snapshot.health.health_age && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-muted-foreground">건강나이:</span>
-                      <span className="font-medium">{snapshot.health.health_age}세</span>
+                ) : (
+                  <p className="text-muted-foreground text-xs">인바디 기반 건강나이 없음</p>
+                )}
+                
+                {/* 건강검진 기록 */}
+                {snapshot?.health ? (
+                  <>
+                    <div className="flex items-center gap-2 pt-1 border-t border-rose-200/50 mt-2">
+                      <span className="text-muted-foreground">최근 검진일:</span>
+                      <span className="font-medium">
+                        {snapshot.health.exam_date 
+                          ? format(new Date(snapshot.health.exam_date), 'yyyy.MM.dd') 
+                          : '-'}
+                      </span>
                     </div>
-                  )}
-                  {snapshot.health.health_tags && snapshot.health.health_tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {snapshot.health.health_tags.map((tag, i) => (
-                        <Badge key={i} variant="secondary" className="text-xs">
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">건강 기록 없음</p>
-              )}
+                    {snapshot.health.health_tags && snapshot.health.health_tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {snapshot.health.health_tags.map((tag, i) => (
+                          <Badge key={i} variant="secondary" className="text-xs">
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                ) : null}
+              </div>
             </div>
 
             {/* 3. 영양 카드 */}
