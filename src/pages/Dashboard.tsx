@@ -104,37 +104,37 @@ export default function Dashboard() {
   }, [hasHealthAge, caloriesMet, todayWater, waterGoal]);
 
   return (
-    <div className="flex flex-col h-full pb-4">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
+    <div className="flex flex-col h-full overflow-hidden">
+      {/* Header - 모바일에서 간격 축소 */}
+      <div className="flex items-center justify-between mb-2">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">
+          <h1 className="text-xl md:text-2xl font-bold text-foreground">
             안녕하세요, {profile?.nickname || "회원"}님!
           </h1>
-          <p className="text-muted-foreground">오늘도 건강한 하루 보내세요 🌟</p>
+          <p className="text-sm text-muted-foreground">오늘도 건강한 하루 보내세요 🌟</p>
         </div>
       </div>
 
-      {/* 영양갱 캐릭터 */}
+      {/* 영양갱 캐릭터 + 말풍선 */}
       <YanggaengCharacter achievementCount={achievementCount} />
 
       {/* Today's Summary KPIs */}
-      <div className="flex-1 flex flex-col">
-        <h2 className="text-lg font-semibold flex items-center gap-2 mb-3">
-          <Target className="w-5 h-5 text-primary" />
+      <div className="flex-1 flex flex-col min-h-0">
+        <h2 className="text-base font-semibold flex items-center gap-2 mb-2">
+          <Target className="w-4 h-4 text-primary" />
           오늘 요약
         </h2>
         
-        <div className="grid grid-cols-2 gap-3 flex-1">
+        <div className="grid grid-cols-2 gap-2 flex-1">
           {/* Calories */}
           <Link to="/nutrition" className="block">
-            <div className="bg-card rounded-2xl border border-border p-3 h-full hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between mb-1.5 gap-1">
+            <div className="bg-card rounded-xl border border-border p-2.5 h-full hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between mb-1 gap-1">
                 <div className="flex items-center gap-1.5 min-w-0">
-                  <div className="w-6 h-6 rounded-full bg-health-orange/10 flex items-center justify-center shrink-0">
+                  <div className="w-5 h-5 rounded-full bg-health-orange/10 flex items-center justify-center shrink-0">
                     <Flame className="w-3 h-3 text-health-orange" />
                   </div>
-                  <span className="text-xs text-muted-foreground whitespace-nowrap truncate">섭취 칼로리</span>
+                  <span className="text-[11px] text-muted-foreground whitespace-nowrap truncate">섭취 칼로리</span>
                 </div>
                 {caloriesReady && caloriesMet && (
                   <Badge className="bg-health-green text-white text-[9px] px-1 py-0 shrink-0">
@@ -142,13 +142,13 @@ export default function Dashboard() {
                   </Badge>
                 )}
               </div>
-              <p className="text-lg font-bold tabular-nums">
+              <p className="text-base font-bold tabular-nums">
                 {goalsReady && !mealsLoading ? `${todayCalories.toLocaleString()} kcal` : "…"}
               </p>
               <p className="text-[10px] text-muted-foreground">
                 목표 {goalsReady ? calorieGoal.toLocaleString() : "…"} kcal
               </p>
-              <div className="mt-1.5 h-1 bg-muted rounded-full overflow-hidden">
+              <div className="mt-1 h-1 bg-muted rounded-full overflow-hidden">
                 <div
                   className="h-full bg-health-orange transition-all"
                   style={{
@@ -165,13 +165,13 @@ export default function Dashboard() {
 
           {/* Water */}
           <Link to="/water" className="block">
-            <div className="bg-card rounded-2xl border border-border p-3 h-full hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between mb-1.5 gap-1">
+            <div className="bg-card rounded-xl border border-border p-2.5 h-full hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between mb-1 gap-1">
                 <div className="flex items-center gap-1.5 min-w-0">
-                  <div className="w-6 h-6 rounded-full bg-health-blue/10 flex items-center justify-center shrink-0">
+                  <div className="w-5 h-5 rounded-full bg-health-blue/10 flex items-center justify-center shrink-0">
                     <Droplets className="w-3 h-3 text-health-blue" />
                   </div>
-                  <span className="text-xs text-muted-foreground whitespace-nowrap truncate">물 섭취</span>
+                  <span className="text-[11px] text-muted-foreground whitespace-nowrap truncate">물 섭취</span>
                 </div>
                 {todayWater >= waterGoal && (
                   <Badge className="bg-health-green text-white text-[9px] px-1 py-0 shrink-0">
@@ -179,9 +179,9 @@ export default function Dashboard() {
                   </Badge>
                 )}
               </div>
-              <p className="text-lg font-bold">{todayWater.toLocaleString()}ml</p>
+              <p className="text-base font-bold">{todayWater.toLocaleString()}ml</p>
               <p className="text-[10px] text-muted-foreground">목표 {waterGoal.toLocaleString()}ml</p>
-              <div className="mt-1.5 h-1 bg-muted rounded-full overflow-hidden">
+              <div className="mt-1 h-1 bg-muted rounded-full overflow-hidden">
                 <div
                   className="h-full bg-health-blue transition-all"
                   style={{ width: `${Math.min((todayWater / waterGoal) * 100, 100)}%` }}
@@ -192,16 +192,16 @@ export default function Dashboard() {
 
           {/* 걸음수 카드 */}
           <Link to="/exercise" className="block">
-            <div className="bg-card rounded-2xl border border-border p-3 h-full hover:shadow-md transition-shadow">
-              <div className="flex items-center gap-1.5 mb-1.5">
-                <div className="w-6 h-6 rounded-full bg-health-green/10 flex items-center justify-center shrink-0">
+            <div className="bg-card rounded-xl border border-border p-2.5 h-full hover:shadow-md transition-shadow">
+              <div className="flex items-center gap-1.5 mb-1">
+                <div className="w-5 h-5 rounded-full bg-health-green/10 flex items-center justify-center shrink-0">
                   <Dumbbell className="w-3 h-3 text-health-green" />
                 </div>
-                <span className="text-xs text-muted-foreground whitespace-nowrap truncate">걸음수</span>
+                <span className="text-[11px] text-muted-foreground whitespace-nowrap truncate">걸음수</span>
               </div>
-              <p className="text-lg font-bold">0 걸음</p>
+              <p className="text-base font-bold">0 걸음</p>
               <p className="text-[10px] text-muted-foreground">연동 준비중</p>
-              <div className="mt-1.5 h-1 bg-muted rounded-full overflow-hidden">
+              <div className="mt-1 h-1 bg-muted rounded-full overflow-hidden">
                 <div className="h-full bg-health-green transition-all" style={{ width: '0%' }} />
               </div>
             </div>
@@ -209,15 +209,15 @@ export default function Dashboard() {
 
           {/* 건강나이 카드 */}
           <div 
-            className="bg-card rounded-2xl border border-border p-3 h-full hover:shadow-md transition-shadow cursor-pointer"
+            className="bg-card rounded-xl border border-border p-2.5 h-full hover:shadow-md transition-shadow cursor-pointer"
             onClick={() => navigate('/medical')}
           >
-            <div className="flex items-center justify-between mb-1.5 gap-1">
+            <div className="flex items-center justify-between mb-1 gap-1">
               <div className="flex items-center gap-1.5 min-w-0">
-                <div className="w-6 h-6 rounded-full bg-health-purple/10 flex items-center justify-center shrink-0">
+                <div className="w-5 h-5 rounded-full bg-health-purple/10 flex items-center justify-center shrink-0">
                   <Heart className="w-3 h-3 text-health-purple" />
                 </div>
-                <span className="text-xs text-muted-foreground whitespace-nowrap truncate">건강나이</span>
+                <span className="text-[11px] text-muted-foreground whitespace-nowrap truncate">건강나이</span>
               </div>
               {hasHealthAge && (
                 <Badge className="bg-health-green text-white text-[9px] px-1 py-0 shrink-0">
@@ -225,11 +225,11 @@ export default function Dashboard() {
                 </Badge>
               )}
             </div>
-            <p className="text-lg font-bold">
+            <p className="text-base font-bold">
               {hasHealthAge ? `${actualAge}세 / ${healthAge}세` : "- / -"}
             </p>
             <p className="text-[10px] text-muted-foreground">실제나이 / 건강나이</p>
-            <div className="mt-1.5 h-1 bg-muted rounded-full overflow-hidden">
+            <div className="mt-1 h-1 bg-muted rounded-full overflow-hidden">
               <div 
                 className="h-full bg-health-purple transition-all" 
                 style={{ 
@@ -243,18 +243,18 @@ export default function Dashboard() {
 
       {/* Guardian Family Section - 보호자이고 연결된 피보호자가 있을 때만 표시 */}
       {hasConnectedWards && (
-        <Link to="/guardian" className="block mt-4">
-          <div className="bg-gradient-to-r from-primary/10 to-primary/5 rounded-2xl border border-primary/20 p-4 flex items-center justify-between hover:shadow-md transition-shadow">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
-                <TrendingUp className="w-6 h-6 text-primary" />
+        <Link to="/guardian" className="block mt-2">
+          <div className="bg-gradient-to-r from-primary/10 to-primary/5 rounded-xl border border-primary/20 p-3 flex items-center justify-between hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-2">
+              <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                <TrendingUp className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <p className="font-semibold text-primary">연결된 가족 현황</p>
-                <p className="text-sm text-muted-foreground">건강 요약 보기</p>
+                <p className="font-semibold text-sm text-primary">연결된 가족 현황</p>
+                <p className="text-xs text-muted-foreground">건강 요약 보기</p>
               </div>
             </div>
-            <ChevronRight className="w-5 h-5 text-primary" />
+            <ChevronRight className="w-4 h-4 text-primary" />
           </div>
         </Link>
       )}

@@ -349,3 +349,38 @@ input[type="number"] {
 .pb-safe {
   padding-bottom: max(1rem, env(safe-area-inset-bottom));
 }
+
+.pb-safe-combined {
+  padding-bottom: calc(env(safe-area-inset-bottom) + 5rem);
+}
+
+/* 말풍선 스타일 */
+.speech-bubble {
+  position: relative;
+  background: hsl(var(--card));
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border: 1px solid hsl(var(--border));
+}
+
+.speech-bubble::before {
+  content: '';
+  position: absolute;
+  top: -7px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  border-bottom: 7px solid hsl(var(--border));
+}
+
+.speech-bubble::after {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-bottom: 6px solid hsl(var(--card));
+}
