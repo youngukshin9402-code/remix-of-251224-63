@@ -2,14 +2,11 @@ import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Shield, Database, Lock, Trash2, FileText } from "lucide-react";
-
 export default function Privacy() {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
-
-  return (
-    <div className="min-h-screen bg-background pb-20">
+  return <div className="min-h-screen bg-background pb-20">
       <div className="sticky top-0 bg-background/95 backdrop-blur-sm border-b border-border p-4 z-10">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" asChild>
@@ -110,14 +107,11 @@ export default function Privacy() {
 
         {/* 문의 */}
         <section className="bg-muted/50 rounded-2xl p-5 text-center">
-          <p className="text-sm text-muted-foreground">
-            개인정보 관련 문의: support@yanggaeng.kr
-          </p>
+          <p className="text-sm text-muted-foreground">개인정보 관련 문의: yeongyanggang@gmail.com</p>
           <p className="text-xs text-muted-foreground mt-1">
             최종 업데이트: 2025년 1월
           </p>
         </section>
       </div>
-    </div>
-  );
+    </div>;
 }
