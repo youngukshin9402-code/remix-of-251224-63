@@ -8,28 +8,15 @@ import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, HelpCircle, MessageSquare, Send, Plus, Clock, CheckCircle, Loader2, Pencil, Trash2, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-
-
-const faqs = [
-  {
-    q: "프리미엄 서비스는 무엇인가요?",
-    a: `프리미엄 서비스에 가입하시면 내과의사, 트레이너, 영양사로 구성된 코치진과 함께 1:1 맞춤 코칭을 받으실 수 있습니다.
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+const faqs = [{
+  q: "프리미엄 서비스는 무엇인가요?",
+  a: `프리미엄 서비스에 가입하시면 내과의사, 트레이너, 영양사로 구성된 코치진과 함께 1:1 맞춤 코칭을 받으실 수 있습니다.
 
 서비스는 주 1회 전화 코칭, 매일 '양갱톡'을 통한 1:1 톡 상담, 그리고 주간 리포트/월간 Recap 영상 제공을 포함하며, 개인의 건강 데이터와 생활 패턴을 바탕으로 라이프스타일을 점진적으로 개선할 수 있도록 돕습니다.`
-  },
-  {
-    q: "보호자 연결은 어떻게 하나요?",
-    a: `보호자 연결은 아래 절차로 진행됩니다.
+}, {
+  q: "보호자 연결은 어떻게 하나요?",
+  a: `보호자 연결은 아래 절차로 진행됩니다.
 
 1. 보호자(가족) 계정 회원가입
 먼저 보호자로 등록할 가족분께서 보호자 계정으로 회원가입을 진행합니다.
@@ -41,29 +28,24 @@ const faqs = [
 
 3. 보호자 계정에서 연결 완료
 보호자 계정에서 마이페이지 > 가족 연결하기로 이동한 뒤, 피보호자의 휴대전화번호와 인증코드를 입력하면 연결이 완료됩니다.`
-  },
-  {
-    q: "식사 사진 분석은 정확한가요?",
-    a: `식사 사진 분석은 GPT-4.0 mini 기반의 AI 분석을 통해, 사진 속 음식 정보를 바탕으로 대략적인 칼로리 및 영양정보를 추정하여 제공합니다.
+}, {
+  q: "식사 사진 분석은 정확한가요?",
+  a: `식사 사진 분석은 GPT-4.0 mini 기반의 AI 분석을 통해, 사진 속 음식 정보를 바탕으로 대략적인 칼로리 및 영양정보를 추정하여 제공합니다.
 
 다만 사진만으로는 정확한 양(분량) 판단에 한계가 있어 추정값으로 제공되며, 정확한 수치 입력이 필요하신 경우 수동 입력 기능을 이용하실 수 있습니다.`
-  },
-  {
-    q: "건강검진 분석은 의료적 진단인가요?",
-    a: `아닙니다. 건강검진 분석 결과는 의료적 진단 또는 치료 방침을 의미하지 않습니다.
+}, {
+  q: "건강검진 분석은 의료적 진단인가요?",
+  a: `아닙니다. 건강검진 분석 결과는 의료적 진단 또는 치료 방침을 의미하지 않습니다.
 
 정확한 의학적 진단과 치료는 반드시 병원에서 의료 전문가와 상담이 필요합니다.
 
 영양갱은 건강검진 결과(혈액검사, 생체 데이터 등)를 참고하여, 현재는 심각하지 않더라도 방치 시 만성질환으로 이어질 수 있는 지표들을 기반으로 생활습관을 개선할 수 있도록 안내하고, 코치와 함께 개인별 원칙을 점검하며 관리할 수 있도록 돕는 역할을 합니다.`
-  },
-  {
-    q: "데이터는 어디에 저장되나요?",
-    a: `개인 건강 데이터는 암호화되어 안전하게 저장됩니다.
+}, {
+  q: "데이터는 어디에 저장되나요?",
+  a: `개인 건강 데이터는 암호화되어 안전하게 저장됩니다.
 
 또한 보안 측면에서 엄격한 내부 보안 정책을 적용하여 개인정보 보호에 만전을 기하고 있습니다.`
-  },
-];
-
+}];
 interface Ticket {
   id: string;
   subject: string;
@@ -81,40 +63,42 @@ interface AdminReply {
   message: string;
   created_at: string;
 }
-
 export default function SupportPage() {
-  const { toast } = useToast();
-  const { user } = useAuth();
+  const {
+    toast
+  } = useToast();
+  const {
+    user
+  } = useAuth();
   const [activeTab, setActiveTab] = useState<"faq" | "tickets" | "new">("faq");
-
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [adminReplies, setAdminReplies] = useState<AdminReply[]>([]);
   const [loading, setLoading] = useState(false);
-  const [newTicket, setNewTicket] = useState({ subject: "", message: "" });
+  const [newTicket, setNewTicket] = useState({
+    subject: "",
+    message: ""
+  });
   const [submitting, setSubmitting] = useState(false);
-  
+
   // 원본 문의 수정/삭제 상태
   const [editingTicketId, setEditingTicketId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState("");
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-
   const fetchTickets = useCallback(async () => {
     if (!user) return;
     setLoading(true);
-    const { data, error } = await supabase
-      .from("support_tickets")
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("is_deleted", false)
-      .order("created_at", { ascending: false });
-
+    const {
+      data,
+      error
+    } = await supabase.from("support_tickets").select("*").eq("user_id", user.id).eq("is_deleted", false).order("created_at", {
+      ascending: false
+    });
     if (!error && data) {
       setTickets(data as Ticket[]);
     }
     setLoading(false);
   }, [user]);
-
   useEffect(() => {
     if (user) {
       fetchTickets();
@@ -123,14 +107,12 @@ export default function SupportPage() {
 
   // 관리자 답변만 조회 (사용자 추가문의 제외)
   const fetchAdminReplies = useCallback(async (ticketId: string) => {
-    const { data, error } = await supabase
-      .from("support_ticket_replies")
-      .select("id, ticket_id, message, created_at")
-      .eq("ticket_id", ticketId)
-      .eq("sender_type", "admin")
-      .eq("is_deleted", false)
-      .order("created_at", { ascending: true });
-
+    const {
+      data,
+      error
+    } = await supabase.from("support_ticket_replies").select("id, ticket_id, message, created_at").eq("ticket_id", ticketId).eq("sender_type", "admin").eq("is_deleted", false).order("created_at", {
+      ascending: true
+    });
     if (!error && data) {
       setAdminReplies(data as AdminReply[]);
     }
@@ -139,53 +121,54 @@ export default function SupportPage() {
   // 실시간 구독 (관리자 답변만)
   useEffect(() => {
     if (!selectedTicket) return;
-
-    const channel = supabase
-      .channel(`ticket-admin-${selectedTicket.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'support_ticket_replies',
-          filter: `ticket_id=eq.${selectedTicket.id}`,
-        },
-        () => {
-          fetchAdminReplies(selectedTicket.id);
-        }
-      )
-      .subscribe();
-
+    const channel = supabase.channel(`ticket-admin-${selectedTicket.id}`).on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'support_ticket_replies',
+      filter: `ticket_id=eq.${selectedTicket.id}`
+    }, () => {
+      fetchAdminReplies(selectedTicket.id);
+    }).subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
   }, [selectedTicket, fetchAdminReplies]);
-
   const handleCreateTicket = async () => {
     if (!user || !newTicket.subject || !newTicket.message) {
-      toast({ title: "제목과 내용을 입력해주세요", variant: "destructive" });
+      toast({
+        title: "제목과 내용을 입력해주세요",
+        variant: "destructive"
+      });
       return;
     }
-
     setSubmitting(true);
-    const { data, error } = await supabase.from("support_tickets").insert({
+    const {
+      data,
+      error
+    } = await supabase.from("support_tickets").insert({
       user_id: user.id,
       subject: newTicket.subject,
       message: newTicket.message,
-      status: "open",
+      status: "open"
     }).select().single();
-
     if (error) {
-      toast({ title: "문의 등록에 실패했습니다", variant: "destructive" });
+      toast({
+        title: "문의 등록에 실패했습니다",
+        variant: "destructive"
+      });
     } else {
-      toast({ title: "문의가 접수되었습니다" });
-      
+      toast({
+        title: "문의가 접수되었습니다"
+      });
+
       // 관리자에게 알림 생성
       if (data) {
         await createNotificationForAdmin(data.id, `새 문의: ${newTicket.subject}`);
       }
-      
-      setNewTicket({ subject: "", message: "" });
+      setNewTicket({
+        subject: "",
+        message: ""
+      });
       setActiveTab("tickets");
       fetchTickets();
     }
@@ -194,11 +177,9 @@ export default function SupportPage() {
 
   // 관리자 알림 생성
   const createNotificationForAdmin = async (ticketId: string, message: string) => {
-    const { data: adminUsers } = await supabase
-      .from("user_roles")
-      .select("user_id")
-      .eq("role", "admin");
-
+    const {
+      data: adminUsers
+    } = await supabase.from("user_roles").select("user_id").eq("role", "admin");
     if (adminUsers) {
       for (const admin of adminUsers) {
         await supabase.from("notifications").insert({
@@ -207,12 +188,11 @@ export default function SupportPage() {
           title: "새 고객 문의",
           message: message,
           related_id: ticketId,
-          related_type: "support_ticket",
+          related_type: "support_ticket"
         });
       }
     }
   };
-
   const openTicketDetail = (ticket: Ticket) => {
     setSelectedTicket(ticket);
     fetchAdminReplies(ticket.id);
@@ -224,7 +204,6 @@ export default function SupportPage() {
     setEditingTicketId(selectedTicket.id);
     setEditingText(selectedTicket.message);
   };
-
   const cancelEditing = () => {
     setEditingTicketId(null);
     setEditingText("");
@@ -233,21 +212,26 @@ export default function SupportPage() {
   // 원본 문의 수정
   const handleEditTicket = async () => {
     if (!user || !selectedTicket || !editingText.trim()) return;
-
     setSubmitting(true);
-    const { error } = await supabase
-      .from("support_tickets")
-      .update({ 
-        message: editingText.trim(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", selectedTicket.id);
-
+    const {
+      error
+    } = await supabase.from("support_tickets").update({
+      message: editingText.trim(),
+      updated_at: new Date().toISOString()
+    }).eq("id", selectedTicket.id);
     if (error) {
-      toast({ title: "수정에 실패했습니다", variant: "destructive" });
+      toast({
+        title: "수정에 실패했습니다",
+        variant: "destructive"
+      });
     } else {
-      toast({ title: "문의가 수정되었습니다" });
-      setSelectedTicket({ ...selectedTicket, message: editingText.trim() });
+      toast({
+        title: "문의가 수정되었습니다"
+      });
+      setSelectedTicket({
+        ...selectedTicket,
+        message: editingText.trim()
+      });
       cancelEditing();
       fetchTickets();
     }
@@ -257,47 +241,42 @@ export default function SupportPage() {
   // 원본 문의 삭제 (soft delete)
   const handleDeleteTicket = async () => {
     if (!user || !selectedTicket) return;
-
     setSubmitting(true);
-    const { error } = await supabase
-      .from("support_tickets")
-      .update({ 
-        is_deleted: true,
-        deleted_at: new Date().toISOString(),
-      })
-      .eq("id", selectedTicket.id);
-
+    const {
+      error
+    } = await supabase.from("support_tickets").update({
+      is_deleted: true,
+      deleted_at: new Date().toISOString()
+    }).eq("id", selectedTicket.id);
     if (error) {
-      toast({ title: "삭제에 실패했습니다", variant: "destructive" });
+      toast({
+        title: "삭제에 실패했습니다",
+        variant: "destructive"
+      });
     } else {
-      toast({ title: "문의가 삭제되었습니다" });
+      toast({
+        title: "문의가 삭제되었습니다"
+      });
       setSelectedTicket(null);
       setDeleteConfirmOpen(false);
       fetchTickets();
     }
     setSubmitting(false);
   };
-
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "open":
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-blue-100 text-blue-700 text-xs">
+        return <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-blue-100 text-blue-700 text-xs">
             <Clock className="w-3 h-3" /> 접수
-          </span>
-        );
+          </span>;
       case "in_progress":
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-amber-100 text-amber-700 text-xs">
+        return <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-amber-100 text-amber-700 text-xs">
             <Loader2 className="w-3 h-3" /> 처리중
-          </span>
-        );
+          </span>;
       case "closed":
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 text-xs">
+        return <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 text-xs">
             <CheckCircle className="w-3 h-3" /> 완료
-          </span>
-        );
+          </span>;
       default:
         return null;
     }
@@ -305,8 +284,7 @@ export default function SupportPage() {
 
   // 티켓 상세 보기
   if (selectedTicket) {
-    return (
-      <div className="min-h-screen bg-background pb-24">
+    return <div className="min-h-screen bg-background pb-24">
         <div className="sticky top-0 bg-background/95 backdrop-blur-sm border-b border-border p-4 z-10">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon" onClick={() => setSelectedTicket(null)}>
@@ -326,60 +304,31 @@ export default function SupportPage() {
                 <span className="text-xs text-muted-foreground">
                   {new Date(selectedTicket.created_at).toLocaleDateString("ko-KR")}
                 </span>
-                {selectedTicket.updated_at !== selectedTicket.created_at && (
-                  <span className="text-xs text-muted-foreground">(수정됨)</span>
-                )}
+                {selectedTicket.updated_at !== selectedTicket.created_at && <span className="text-xs text-muted-foreground">(수정됨)</span>}
               </div>
               
               {/* 수정 버튼 */}
-              {!editingTicketId && selectedTicket.status !== "closed" && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7"
-                  onClick={startEditingTicket}
-                >
+              {!editingTicketId && selectedTicket.status !== "closed" && <Button variant="ghost" size="icon" className="h-7 w-7" onClick={startEditingTicket}>
                   <Pencil className="w-3.5 h-3.5" />
-                </Button>
-              )}
+                </Button>}
             </div>
 
             {/* 수정 모드 */}
-            {editingTicketId === selectedTicket.id ? (
-              <div className="space-y-2">
-                <Textarea
-                  value={editingText}
-                  onChange={(e) => setEditingText(e.target.value)}
-                  rows={3}
-                />
+            {editingTicketId === selectedTicket.id ? <div className="space-y-2">
+                <Textarea value={editingText} onChange={e => setEditingText(e.target.value)} rows={3} />
                 <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    onClick={handleEditTicket}
-                    disabled={submitting || !editingText.trim()}
-                  >
+                  <Button size="sm" onClick={handleEditTicket} disabled={submitting || !editingText.trim()}>
                     저장
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={cancelEditing}
-                  >
+                  <Button size="sm" variant="outline" onClick={cancelEditing}>
                     취소
                   </Button>
                 </div>
-              </div>
-            ) : (
-              <p className="whitespace-pre-wrap">{selectedTicket.message}</p>
-            )}
+              </div> : <p className="whitespace-pre-wrap">{selectedTicket.message}</p>}
           </div>
 
           {/* 관리자 답변만 표시 (읽기 전용) */}
-          {adminReplies.map((reply) => (
-            <div
-              key={reply.id}
-              className="rounded-2xl border p-4 bg-primary/5 border-primary/20 ml-4"
-            >
+          {adminReplies.map(reply => <div key={reply.id} className="rounded-2xl border p-4 bg-primary/5 border-primary/20 ml-4">
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-sm font-medium text-primary">관리자 답변</span>
                 <span className="text-xs text-muted-foreground">
@@ -387,17 +336,14 @@ export default function SupportPage() {
                 </span>
               </div>
               <p className="whitespace-pre-wrap">{reply.message}</p>
-            </div>
-          ))}
+            </div>)}
 
           {/* 추가 문의 안내 문구 */}
-          {selectedTicket.status !== "closed" && (
-            <div className="bg-muted/50 rounded-2xl border border-border p-4 text-center">
+          {selectedTicket.status !== "closed" && <div className="bg-muted/50 rounded-2xl border border-border p-4 text-center">
               <p className="text-sm text-muted-foreground">
                 추가 문의가 필요하시면 새 문의를 작성해주세요.
               </p>
-            </div>
-          )}
+            </div>}
         </div>
 
         {/* 문의 삭제 확인 다이얼로그 */}
@@ -414,21 +360,15 @@ export default function SupportPage() {
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>취소</AlertDialogCancel>
-              <AlertDialogAction
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                onClick={handleDeleteTicket}
-              >
+              <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={handleDeleteTicket}>
                 삭제
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-      </div>
-    );
+      </div>;
   }
-
-  return (
-    <div className="min-h-screen bg-background pb-24">
+  return <div className="min-h-screen bg-background pb-24">
       <div className="sticky top-0 bg-background/95 backdrop-blur-sm border-b border-border p-4 z-10">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" asChild>
@@ -442,38 +382,21 @@ export default function SupportPage() {
 
       {/* 탭 */}
       <div className="flex border-b border-border">
-        <button
-          className={`flex-1 py-3 text-center text-sm font-medium ${
-            activeTab === "faq" ? "text-primary border-b-2 border-primary" : "text-muted-foreground"
-          }`}
-          onClick={() => setActiveTab("faq")}
-        >
+        <button className={`flex-1 py-3 text-center text-sm font-medium ${activeTab === "faq" ? "text-primary border-b-2 border-primary" : "text-muted-foreground"}`} onClick={() => setActiveTab("faq")}>
           자주 묻는 질문
         </button>
-        <button
-          className={`flex-1 py-3 text-center text-sm font-medium ${
-            activeTab === "tickets" ? "text-primary border-b-2 border-primary" : "text-muted-foreground"
-          }`}
-          onClick={() => setActiveTab("tickets")}
-        >
+        <button className={`flex-1 py-3 text-center text-sm font-medium ${activeTab === "tickets" ? "text-primary border-b-2 border-primary" : "text-muted-foreground"}`} onClick={() => setActiveTab("tickets")}>
           내 문의
         </button>
-        <button
-          className={`flex-1 py-3 text-center text-sm font-medium ${
-            activeTab === "new" ? "text-primary border-b-2 border-primary" : "text-muted-foreground"
-          }`}
-          onClick={() => setActiveTab("new")}
-        >
+        <button className={`flex-1 py-3 text-center text-sm font-medium ${activeTab === "new" ? "text-primary border-b-2 border-primary" : "text-muted-foreground"}`} onClick={() => setActiveTab("new")}>
           문의하기
         </button>
       </div>
 
       <div className="p-4 space-y-4">
         {/* FAQ */}
-        {activeTab === "faq" && (
-          <Accordion type="single" collapsible className="bg-card rounded-2xl border border-border">
-            {faqs.map((faq, index) => (
-              <AccordionItem key={index} value={`item-${index}`} className="border-border">
+        {activeTab === "faq" && <Accordion type="single" collapsible className="bg-card rounded-2xl border border-border">
+            {faqs.map((faq, index) => <AccordionItem key={index} value={`item-${index}`} className="border-border">
                 <AccordionTrigger className="px-4 py-3 hover:no-underline">
                   <span className="text-left flex items-center gap-2 min-w-0">
                     <HelpCircle className="w-4 h-4 text-primary shrink-0" />
@@ -483,32 +406,19 @@ export default function SupportPage() {
                 <AccordionContent className="px-4 pb-4 text-muted-foreground text-sm">
                   {faq.a}
                 </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
-        )}
+              </AccordionItem>)}
+          </Accordion>}
 
         {/* 내 문의 목록 */}
-        {activeTab === "tickets" && (
-          <div className="space-y-3">
-            {loading ? (
-              <div className="text-center py-8 text-muted-foreground">로딩 중...</div>
-            ) : tickets.length === 0 ? (
-              <div className="text-center py-8">
+        {activeTab === "tickets" && <div className="space-y-3">
+            {loading ? <div className="text-center py-8 text-muted-foreground">로딩 중...</div> : tickets.length === 0 ? <div className="text-center py-8">
                 <MessageSquare className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
                 <p className="text-muted-foreground">문의 내역이 없습니다</p>
                 <Button className="mt-4" onClick={() => setActiveTab("new")}>
                   <Plus className="w-4 h-4 mr-2" />
                   새 문의하기
                 </Button>
-              </div>
-            ) : (
-              tickets.map((ticket) => (
-                <button
-                  key={ticket.id}
-                  className="w-full text-left bg-card rounded-2xl border border-border p-4 hover:border-primary transition-colors"
-                  onClick={() => openTicketDetail(ticket)}
-                >
+              </div> : tickets.map(ticket => <button key={ticket.id} className="w-full text-left bg-card rounded-2xl border border-border p-4 hover:border-primary transition-colors" onClick={() => openTicketDetail(ticket)}>
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
                       <h3 className="font-medium truncate">{ticket.subject}</h3>
@@ -521,15 +431,11 @@ export default function SupportPage() {
                     </div>
                     {getStatusBadge(ticket.status)}
                   </div>
-                </button>
-              ))
-            )}
-          </div>
-        )}
+                </button>)}
+          </div>}
 
         {/* 새 문의 작성 */}
-        {activeTab === "new" && (
-          <div className="bg-card rounded-2xl border border-border p-5 space-y-4">
+        {activeTab === "new" && <div className="bg-card rounded-2xl border border-border p-5 space-y-4">
             <h2 className="font-semibold flex items-center gap-2">
               <MessageSquare className="w-5 h-5 text-primary" />
               문의하기
@@ -537,20 +443,17 @@ export default function SupportPage() {
             <div className="space-y-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium">제목</label>
-                <Input
-                  placeholder="문의 제목을 입력하세요"
-                  value={newTicket.subject}
-                  onChange={(e) => setNewTicket({ ...newTicket, subject: e.target.value })}
-                />
+                <Input placeholder="문의 제목을 입력하세요" value={newTicket.subject} onChange={e => setNewTicket({
+              ...newTicket,
+              subject: e.target.value
+            })} />
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">내용</label>
-                <Textarea
-                  placeholder="문의 내용을 자세히 작성해주세요"
-                  rows={6}
-                  value={newTicket.message}
-                  onChange={(e) => setNewTicket({ ...newTicket, message: e.target.value })}
-                />
+                <Textarea placeholder="문의 내용을 자세히 작성해주세요" rows={6} value={newTicket.message} onChange={e => setNewTicket({
+              ...newTicket,
+              message: e.target.value
+            })} />
               </div>
               <Button className="w-full" onClick={handleCreateTicket} disabled={submitting}>
                 <Send className="w-4 h-4 mr-2" />
@@ -562,13 +465,9 @@ export default function SupportPage() {
               <p className="text-sm text-muted-foreground">
                 문의 접수 후 영업일 기준 1~2일 내에 답변 드립니다.
               </p>
-              <p className="text-sm text-muted-foreground mt-1">
-                이메일: support@yanggaeng.kr
-              </p>
+              <p className="text-sm text-muted-foreground mt-1">이메일: yeongyanggang@gmail.com</p>
             </div>
-          </div>
-        )}
+          </div>}
       </div>
-    </div>
-  );
+    </div>;
 }
