@@ -329,15 +329,22 @@ export function useCoaching() {
           } : null,
         },
         
-        // 건강검진 데이터 (건강나이 필드는 null로 설정 - 인바디 건강나이와 분리)
+        // 건강기록 + 인바디 기반 건강나이 (건강검진 건강나이 대신 인바디 건강나이 사용)
         health: healthRecord ? {
           id: healthRecord.id,
           exam_date: healthRecord.exam_date,
-          health_age: null, // 건강검진 건강나이는 활동 공유에 포함하지 않음
+          health_age: inbodyHealthAge?.health_age ?? null, // 인바디 기반 건강나이 사용
           health_tags: healthRecord.health_tags,
           parsed_data: healthRecord.parsed_data,
           created_at: healthRecord.created_at,
-        } : null,
+        } : (inbodyHealthAge ? {
+          id: '',
+          exam_date: null,
+          health_age: inbodyHealthAge.health_age, // 건강검진 기록 없어도 인바디 건강나이 표시
+          health_tags: null,
+          parsed_data: null,
+          created_at: new Date().toISOString(),
+        } : null),
         
         nutrition: {
           totalCalories,
