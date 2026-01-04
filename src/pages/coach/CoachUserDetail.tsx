@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, differenceInYears } from "date-fns";
 import { ko } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -24,9 +23,15 @@ import {
   Heart,
   Check,
   X,
-  Video,
   Loader2,
   Eye,
+  Phone,
+  Calendar,
+  Ruler,
+  Scale,
+  Target,
+  Activity,
+  AlertCircle,
 } from "lucide-react";
 import { HealthRecordDetailSheet } from "@/components/health/HealthRecordDetailSheet";
 
@@ -37,6 +42,16 @@ interface UserProfile {
   subscription_tier: string;
   current_points: number;
   created_at: string;
+}
+
+interface NutritionSettings {
+  gender: string | null;
+  age: number | null;
+  height_cm: number | null;
+  current_weight: number | null;
+  goal_weight: number | null;
+  activity_level: string | null;
+  conditions: string[] | null;
 }
 
 interface HealthRecord {
@@ -59,6 +74,7 @@ export default function CoachUserDetail() {
   const { toast } = useToast();
 
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [nutritionSettings, setNutritionSettings] = useState<NutritionSettings | null>(null);
   const [healthRecords, setHealthRecords] = useState<HealthRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -86,6 +102,15 @@ export default function CoachUserDetail() {
         .single();
 
       if (profile) setUserProfile(profile);
+
+      // 영양 설정 (추가 정보)
+      const { data: nutrition } = await supabase
+        .from("nutrition_settings")
+        .select("gender, age, height_cm, current_weight, goal_weight, activity_level, conditions")
+        .eq("user_id", userId)
+        .single();
+
+      if (nutrition) setNutritionSettings(nutrition);
 
       // 건강 기록
       const { data: records } = await supabase
@@ -162,6 +187,25 @@ export default function CoachUserDetail() {
     }
   };
 
+  const getActivityLevelLabel = (level: string | null) => {
+    switch (level) {
+      case 'sedentary': return '비활동적';
+      case 'light': return '가벼운 활동';
+      case 'moderate': return '보통 활동';
+      case 'active': return '활동적';
+      case 'very_active': return '매우 활동적';
+      default: return level || '-';
+    }
+  };
+
+  const getGenderLabel = (gender: string | null) => {
+    switch (gender) {
+      case 'male': return '남성';
+      case 'female': return '여성';
+      default: return gender || '-';
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background p-6">
@@ -192,12 +236,6 @@ export default function CoachUserDetail() {
             <h1 className="text-xl font-bold">{userProfile.nickname}님</h1>
             <p className="text-sm text-muted-foreground">회원 상세 정보</p>
           </div>
-          <div className="ml-auto">
-            <Button onClick={() => navigate(`/video-call/new?userId=${userId}`)}>
-              <Video className="mr-2 h-4 w-4" />
-              영상 코칭
-            </Button>
-          </div>
         </div>
       </header>
 
@@ -210,36 +248,97 @@ export default function CoachUserDetail() {
               기본 정보
             </CardTitle>
           </CardHeader>
-          <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div>
-              <p className="text-sm text-muted-foreground">연락처</p>
-              <p className="font-medium">{userProfile.phone || "-"}</p>
+          <CardContent className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="flex items-start gap-2">
+              <Phone className="w-4 h-4 text-muted-foreground mt-0.5" />
+              <div>
+                <p className="text-sm text-muted-foreground">연락처</p>
+                <p className="font-medium">{userProfile.phone || "-"}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-sm text-muted-foreground">구독</p>
-              <Badge
-                variant={
-                  userProfile.subscription_tier === "premium"
-                    ? "default"
-                    : "secondary"
-                }
-              >
-                {userProfile.subscription_tier === "premium" ? "프리미엄" : "베이직"}
-              </Badge>
+            <div className="flex items-start gap-2">
+              <User className="w-4 h-4 text-muted-foreground mt-0.5" />
+              <div>
+                <p className="text-sm text-muted-foreground">성별</p>
+                <p className="font-medium">{getGenderLabel(nutritionSettings?.gender)}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-sm text-muted-foreground">보유 포인트</p>
-              <p className="font-medium">{userProfile.current_points.toLocaleString()}P</p>
+            <div className="flex items-start gap-2">
+              <Calendar className="w-4 h-4 text-muted-foreground mt-0.5" />
+              <div>
+                <p className="text-sm text-muted-foreground">만 나이</p>
+                <p className="font-medium">
+                  {nutritionSettings?.age ? `${nutritionSettings.age}세` : "-"}
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="text-sm text-muted-foreground">가입일</p>
-              <p className="font-medium">
-                {format(parseISO(userProfile.created_at), "yyyy.MM.dd", {
-                  locale: ko,
-                })}
-              </p>
+            <div className="flex items-start gap-2">
+              <Ruler className="w-4 h-4 text-muted-foreground mt-0.5" />
+              <div>
+                <p className="text-sm text-muted-foreground">키</p>
+                <p className="font-medium">
+                  {nutritionSettings?.height_cm ? `${nutritionSettings.height_cm}cm` : "-"}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <Scale className="w-4 h-4 text-muted-foreground mt-0.5" />
+              <div>
+                <p className="text-sm text-muted-foreground">현재 체중</p>
+                <p className="font-medium">
+                  {nutritionSettings?.current_weight ? `${nutritionSettings.current_weight}kg` : "-"}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <Target className="w-4 h-4 text-muted-foreground mt-0.5" />
+              <div>
+                <p className="text-sm text-muted-foreground">목표 체중</p>
+                <p className="font-medium">
+                  {nutritionSettings?.goal_weight ? `${nutritionSettings.goal_weight}kg` : "-"}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <Activity className="w-4 h-4 text-muted-foreground mt-0.5" />
+              <div>
+                <p className="text-sm text-muted-foreground">활동수준</p>
+                <p className="font-medium">
+                  {getActivityLevelLabel(nutritionSettings?.activity_level)}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <Calendar className="w-4 h-4 text-muted-foreground mt-0.5" />
+              <div>
+                <p className="text-sm text-muted-foreground">가입일</p>
+                <p className="font-medium">
+                  {format(parseISO(userProfile.created_at), "yyyy.MM.dd", {
+                    locale: ko,
+                  })}
+                </p>
+              </div>
             </div>
           </CardContent>
+          
+          {/* 지병/건강 상태 */}
+          {nutritionSettings?.conditions && nutritionSettings.conditions.length > 0 && (
+            <CardContent className="pt-0">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-muted-foreground mt-0.5" />
+                <div>
+                  <p className="text-sm text-muted-foreground mb-2">지병/건강 상태</p>
+                  <div className="flex flex-wrap gap-2">
+                    {nutritionSettings.conditions.map((condition, i) => (
+                      <Badge key={i} variant="outline">
+                        {condition}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          )}
         </Card>
 
         {/* 건강검진 기록 */}

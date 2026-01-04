@@ -42,13 +42,15 @@ interface CheckinReportTimelineProps {
   limit?: number;
   showSearch?: boolean;
   showTabs?: boolean;
+  onUserClick?: (userId: string, nickname: string) => void;
 }
 
 export function CheckinReportTimeline({ 
   userId, 
   limit = 50, 
   showSearch = true,
-  showTabs = true 
+  showTabs = true,
+  onUserClick 
 }: CheckinReportTimelineProps) {
   const { user } = useAuth();
   const [reports, setReports] = useState<CheckinReport[]>([]);
@@ -219,32 +221,45 @@ export function CheckinReportTimeline({
                 className="bg-card rounded-xl border border-border overflow-hidden"
               >
                 {/* 사용자 헤더 (클릭 시 펼침/접힘) */}
-                <button
-                  onClick={() => toggleUserExpand(uid)}
-                  className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
+                <div className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors">
+                  <button
+                    onClick={() => toggleUserExpand(uid)}
+                    className="flex items-center gap-3 flex-1 text-left"
+                  >
                     <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                       <User className="w-5 h-5 text-primary" />
                     </div>
-                    <div className="text-left">
+                    <div>
                       <p className="font-medium">{userData.nickname}</p>
                       <p className="text-xs text-muted-foreground">
                         총 {userData.reports.length}개의 활동 카드
                       </p>
                     </div>
-                  </div>
+                  </button>
                   <div className="flex items-center gap-2">
+                    {onUserClick && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onUserClick(uid, userData.nickname);
+                        }}
+                        className="text-xs text-primary hover:underline px-2 py-1"
+                      >
+                        전체 보기
+                      </button>
+                    )}
                     <Badge variant="secondary" className="text-xs">
                       {userData.reports.length}건
                     </Badge>
-                    {isExpanded ? (
-                      <ChevronDown className="w-5 h-5 text-muted-foreground" />
-                    ) : (
-                      <ChevronRight className="w-5 h-5 text-muted-foreground" />
-                    )}
+                    <button onClick={() => toggleUserExpand(uid)}>
+                      {isExpanded ? (
+                        <ChevronDown className="w-5 h-5 text-muted-foreground" />
+                      ) : (
+                        <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                      )}
+                    </button>
                   </div>
-                </button>
+                </div>
 
                 {/* 펼쳐진 리포트 목록 */}
                 {isExpanded && (
