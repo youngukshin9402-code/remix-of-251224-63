@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
+import { format } from "date-fns";
+import { ko } from "date-fns/locale";
 
 interface YanggaengCharacterProps {
   achievementCount: number; // 0-4
@@ -13,6 +15,48 @@ const SCALE_FACTORS: Record<number, number> = {
   5: 1.0,
 };
 
+// 아침 문구 (06:00 ~ 17:59 KST)
+const MORNING_MESSAGES = [
+  "천천히 가도 괜찮아요. 건강은 마라톤이니까요!",
+  "오늘도 내 몸을 챙기는 하루를 시작해볼까요?",
+  "완벽하지 않아도 좋아요. 시작한 것만으로 충분해요!",
+  "오늘의 작은 선택이 내일의 컨디션을 만들어요 😊",
+  "무리하지 말고 지금 페이스 그대로 가요!",
+  "오늘도 나를 아끼는 하루가 되길 응원해요 💛",
+  "잘하려고 애쓰는 지금 이 순간이 이미 멋져요!",
+  "오늘 하루도 내 몸 편에 서볼까요?",
+  "어제보다 조금만 더 신경 쓰면 충분해요!",
+  "오늘도 건강한 라이프스타일 한 걸음 시작이에요 🌱",
+];
+
+// 저녁 문구 (18:00 ~ 05:59 KST)
+const EVENING_MESSAGES = [
+  "오늘 하루도 수고했어요. 이 정도면 충분해요.",
+  "완벽하지 않아도 괜찮은 하루였어요 😊",
+  "오늘도 나를 챙기느라 고생 많았어요!",
+  "잘한 점 하나쯤은 분명 있었을 거예요.",
+  "오늘의 노력은 몸이 기억할 거예요 💪",
+  "여기까지 온 것만 해도 정말 잘했어요.",
+  "오늘 하루도 무사히 보낸 걸로 충분해요.",
+  "내 몸을 생각한 오늘, 의미 있었어요.",
+  "고생한 만큼 푹 쉬어도 되는 밤이에요 🌙",
+  "오늘도 나를 포기하지 않은 하루였어요.",
+];
+
+// KST 기준 현재 시간대에 맞는 랜덤 문구 생성
+const getRandomMessage = (): string => {
+  const now = new Date();
+  // KST는 UTC+9
+  const kstHour = (now.getUTCHours() + 9) % 24;
+  
+  const isMorning = kstHour >= 6 && kstHour < 18;
+  const messages = isMorning ? MORNING_MESSAGES : EVENING_MESSAGES;
+  const randomIndex = Math.floor(Math.random() * messages.length);
+  
+  const dateStr = format(now, 'M월 d일', { locale: ko });
+  return `${dateStr}, ${messages[randomIndex]}`;
+};
+
 export default function YanggaengCharacter({ achievementCount }: YanggaengCharacterProps) {
   // 달성 개수 → 단계 매핑 (0개=1단계, 4개=5단계)
   const stage = useMemo(() => {
@@ -21,6 +65,9 @@ export default function YanggaengCharacter({ achievementCount }: YanggaengCharac
 
   const [displayedStage, setDisplayedStage] = useState(stage);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  
+  // 컴포넌트 마운트 시 랜덤 문구 생성 (재진입 시 변경됨)
+  const [message] = useState(() => getRandomMessage());
 
   // 상태 전환 애니메이션
   useEffect(() => {
@@ -48,14 +95,12 @@ export default function YanggaengCharacter({ achievementCount }: YanggaengCharac
   const imageSrc = `/yanggaeng/stage-${displayedStage}.png?v=4`;
 
   return (
-    <div className="flex justify-center items-center py-4">
+    <div className="flex flex-col items-center py-2">
+      {/* 양갱 캐릭터 */}
       <div 
-        className="relative w-[120px] h-[120px] flex items-center justify-center"
+        className="relative w-[100px] h-[100px] flex items-center justify-center"
         style={{
-          // 전환 애니메이션
-          transform: isTransitioning 
-            ? 'scale(0.95)' 
-            : 'scale(1)',
+          transform: isTransitioning ? 'scale(0.95)' : 'scale(1)',
           transition: 'transform 0.2s ease-out',
         }}
       >
@@ -68,13 +113,17 @@ export default function YanggaengCharacter({ achievementCount }: YanggaengCharac
             height: '100%',
             objectFit: 'contain',
             transform: `scale(${scaleFactor})`,
-            // 전환 시 bounce 효과
-            animation: isTransitioning 
-              ? 'none' 
-              : undefined,
+            animation: isTransitioning ? 'none' : undefined,
           }}
           draggable={false}
         />
+      </div>
+      
+      {/* 말풍선 */}
+      <div className="speech-bubble mt-2 px-3 py-1.5 max-w-[280px]">
+        <p className="text-xs sm:text-sm text-center text-foreground leading-relaxed">
+          {message}
+        </p>
       </div>
     </div>
   );
