@@ -22,7 +22,8 @@ export default function Profile() {
   if (!profile) return null;
 
   const isGuardian = profile.user_type === "guardian";
-  const isPremium = profile.subscription_tier === "premium";
+  // 코치가 배정된 회원도 프리미엄으로 표시
+  const isPremium = profile.subscription_tier === "premium" || !!profile.assigned_coach_id;
 
   const menuItems = [
     {
