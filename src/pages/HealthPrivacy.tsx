@@ -2,14 +2,11 @@ import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Heart, Database, Shield, Trash2, Eye } from 'lucide-react';
-
 export default function HealthPrivacy() {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
-
-  return (
-    <div className="min-h-screen bg-background pb-24">
+  return <div className="min-h-screen bg-background pb-24">
       <div className="sticky top-0 bg-background/95 backdrop-blur-sm border-b border-border p-4 z-10">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" asChild>
@@ -141,10 +138,9 @@ export default function HealthPrivacy() {
         </section>
 
         <div className="text-center text-sm text-muted-foreground pt-6 border-t border-border">
-          <p>문의: support@yanggaeng.kr</p>
+          <p>문의: yeongyanggang@gmail.com</p>
           <p className="mt-1">본 고지는 2025년 1월 1일부터 시행됩니다.</p>
         </div>
       </div>
-    </div>
-  );
+    </div>;
 }
