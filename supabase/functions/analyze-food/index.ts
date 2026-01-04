@@ -225,8 +225,10 @@ serve(async (req) => {
 - 사진에서 보이는 음식을 가능한 한 구체적으로 식별한다.
   (예: "비빔밥", "제육볶음", "닭가슴살 샐러드", "라면" 등)
 - 여러 음식이 보일 경우, 각각을 분리해서 인식한다.
-- 정확히 알 수 없는 경우:
-  "○○로 보이는 음식"처럼 추정임을 명확히 표시한다.
+- 단일 재료라도 음식이면 반드시 음식으로 인식한다.
+  (예: 흰쌀밥/현미밥, 계란후라이, 삶은 계란, 바나나, 우유, 두부 등)
+- 정확히 알 수 없는 경우에도 가능한 최선의 추정을 제공한다:
+  - "○○로 보이는 음식"처럼 추정임을 표시하고 confidence를 "낮음"으로 둔다.
 
 2. 양(분량) 추정
 - 일반적인 1인분 기준으로 추정한다.
@@ -247,11 +249,12 @@ serve(async (req) => {
 - '추정', '일반적인 기준'이라는 표현을 유지한다.
 
 5. 음식이 아닌 사진 처리 (매우 중요!)
-- 음식이 없거나 음식을 인식할 수 없는 사진의 경우:
-  - foods 배열을 빈 배열 []로 반환
-  - notes에 "음식을 인식할 수 없습니다" 등의 설명 포함
-- 물, 얼음물, 빈 접시, 음료수(탄산음료/주스 제외) 등은 음식으로 인식하지 않음
-- 사람, 풍경, 물건 등 음식이 아닌 사진은 빈 배열로 처리`;
+- 음식이 전혀 없다고 확신할 수 있는 경우에만 foods를 빈 배열 []로 반환한다.
+  (예: 사람/풍경/문서/기기/옷/가구/빈 책상/완전한 빈 접시 등)
+- 음식처럼 보이는 어떤 요소라도 있으면(그릇+내용물/식재료/조리 흔적 등)
+  절대 빈 배열을 반환하지 말고, 최소 1개 이상의 추정 항목을 제공한다.
+- 물/얼음물/생수만 단독으로 있는 사진은 음식이 아닌 것으로 처리한다.`;
+
 
     // 사용자 프롬프트: 분석 요청 및 출력 형식
     const userPrompt = `이 음식 사진을 분석해주세요.
@@ -279,7 +282,7 @@ ${healthContext ? `사용자 건강 상태: ${healthTags.join(", ")}` : ""}
 - 음식이 없거나 인식할 수 없으면 foods를 빈 배열 []로 반환하고 notes에 이유를 설명해주세요.
 - JSON만 출력하고 다른 설명은 포함하지 마세요.`;
 
-    console.log("Calling Lovable AI (GPT-5-mini vision) for food image analysis...");
+    console.log("Calling Lovable AI (Gemini 2.5 Pro vision) for food image analysis...");
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -288,7 +291,7 @@ ${healthContext ? `사용자 건강 상태: ${healthTags.join(", ")}` : ""}
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "openai/gpt-5-mini",
+        model: "google/gemini-2.5-pro",
         messages: [
           { role: "system", content: systemPrompt },
           {
@@ -304,6 +307,7 @@ ${healthContext ? `사용자 건강 상태: ${healthTags.join(", ")}` : ""}
         ],
       }),
     });
+
 
     if (!aiResponse.ok) {
       if (aiResponse.status === 429) {
