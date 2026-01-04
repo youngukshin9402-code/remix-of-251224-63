@@ -177,7 +177,7 @@ export function CoachingRecordsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[85vh] flex flex-col">
+      <DialogContent className="sm:max-w-lg h-[85vh] max-h-[85vh] flex flex-col overflow-hidden min-h-0">
         <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Video className="w-5 h-5 text-sky-600" />
@@ -185,7 +185,7 @@ export function CoachingRecordsDialog({
           </DialogTitle>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 -mx-6 px-6">
+        <ScrollArea className="flex-1 min-h-0 -mx-6 px-6">
           <div className="space-y-4 py-2">
             {/* 새 기록 추가 버튼 / 폼 */}
             {!showAddForm ? (
