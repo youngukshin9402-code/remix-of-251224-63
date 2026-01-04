@@ -2,14 +2,11 @@ import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, FileText, Mail, Clock, Shield } from 'lucide-react';
-
 export default function Terms() {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
-
-  return (
-    <div className="min-h-screen bg-background pb-24">
+  return <div className="min-h-screen bg-background pb-24">
       <div className="sticky top-0 bg-background/95 backdrop-blur-sm border-b border-border p-4 z-10">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" asChild>
@@ -132,7 +129,7 @@ export default function Terms() {
               <Mail className="w-5 h-5 text-primary" />
               <div>
                 <p className="font-medium">이메일 문의</p>
-                <p className="text-sm text-muted-foreground">support@yanggaeng.kr</p>
+                <p className="text-sm text-muted-foreground">yeongyanggang@gmail.com</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -165,6 +162,5 @@ export default function Terms() {
           <p>본 약관은 2025년 1월 1일부터 시행됩니다.</p>
         </div>
       </div>
-    </div>
-  );
+    </div>;
 }
