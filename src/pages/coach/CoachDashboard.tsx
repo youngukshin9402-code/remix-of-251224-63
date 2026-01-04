@@ -189,11 +189,11 @@ export default function CoachDashboard() {
           </div>
         )}
 
-        {/* 체크인 리포트 타임라인 */}
+        {/* 오늘의 활동 카드 타임라인 */}
         <div>
           <div className="flex items-center gap-2 mb-4">
             <ClipboardCheck className="w-5 h-5 text-primary" />
-            <h2 className="text-xl font-semibold">체크인 리포트</h2>
+            <h2 className="text-xl font-semibold">오늘의 활동 카드</h2>
           </div>
           <CheckinReportTimeline limit={30} />
         </div>
