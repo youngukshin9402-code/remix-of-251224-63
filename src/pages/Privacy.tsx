@@ -79,9 +79,8 @@ export default function Privacy() {
             <h2 className="text-lg font-semibold">데이터 삭제</h2>
           </div>
           <p className="text-muted-foreground">
-            회원 탈퇴 시 모든 개인정보가 삭제됩니다. 단, 전자상거래법에 따라 
-            결제 관련 기록은 5년간 보관됩니다.
-            마이페이지 &gt; 회원탈퇴에서 진행할 수 있습니다.
+            회원 탈퇴 시 개인정보는 원칙적으로 삭제됩니다. 다만, 전자상거래법 등 
+            관련 법령에 따라 결제·거래 내역 등 일부 정보는 최대 5년간 보관될 수 있습니다.
           </p>
         </section>
 
