@@ -135,8 +135,8 @@ export function UserActivityDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[85vh]">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-2xl h-[85vh] max-h-[85vh] flex flex-col overflow-hidden min-h-0">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
               <User className="w-4 h-4 text-primary" />
@@ -157,7 +157,7 @@ export function UserActivityDialog({
             <p>{userNickname}님의 활동 카드가 없습니다</p>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="flex flex-col gap-4 flex-1 min-h-0">
             {/* 날짜 네비게이션 */}
             <div className="flex items-center justify-between bg-muted/50 rounded-xl p-3">
               <Button
@@ -168,7 +168,7 @@ export function UserActivityDialog({
               >
                 <ChevronLeft className="w-5 h-5" />
               </Button>
-              
+
               <div className="flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-primary" />
                 <span className="font-medium">
@@ -180,7 +180,7 @@ export function UserActivityDialog({
                   </Badge>
                 )}
               </div>
-              
+
               <Button
                 variant="ghost"
                 size="icon"
@@ -217,8 +217,8 @@ export function UserActivityDialog({
               </div>
             )}
 
-            {/* 해당 날짜의 활동 카드 */}
-            <ScrollArea className="max-h-[50vh]">
+            {/* 해당 날짜의 활동 카드 (스크롤 영역) */}
+            <ScrollArea className="flex-1 min-h-0">
               {reportsForSelectedDate.length === 0 ? (
                 <div className="py-12 text-center text-muted-foreground">
                   <ClipboardCheck className="w-10 h-10 mx-auto mb-3 opacity-30" />
@@ -239,8 +239,7 @@ export function UserActivityDialog({
                         report={report}
                         compact={false}
                       />
-                    ))
-                  }
+                    ))}
                 </div>
               )}
             </ScrollArea>
