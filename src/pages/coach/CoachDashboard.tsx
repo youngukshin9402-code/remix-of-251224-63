@@ -194,17 +194,63 @@ export default function CoachDashboard() {
             </div>
           ) : (
             <div className="bg-card rounded-2xl border border-border overflow-hidden">
-              <table className="w-full">
+              {/* 모바일용 카드 레이아웃 */}
+              <div className="md:hidden divide-y divide-border">
+                {filteredUsers.map((user) => (
+                  <div key={user.id} className="p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                          <span className="text-primary font-medium">
+                            {user.nickname?.[0] || "?"}
+                          </span>
+                        </div>
+                        <div>
+                          <p className="font-medium">{user.nickname || "이름없음"}</p>
+                          {user.pendingReview && (
+                            <span className="text-xs text-amber-600 flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              검토 대기
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <span className="text-sm text-muted-foreground">{user.lastActive}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => navigate(`/coach/user/${user.id}`)}
+                      >
+                        상세
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openFeedbackForm(user.id, user.nickname || "")}
+                      >
+                        <MessageSquare className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={() => navigate(`/video-call/new?userId=${user.id}`)}
+                      >
+                        <Video className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* 데스크탑용 테이블 레이아웃 */}
+              <table className="w-full hidden md:table">
                 <thead>
                   <tr className="border-b border-border bg-muted/50">
                     <th className="text-left p-4 font-medium text-muted-foreground">
                       회원
-                    </th>
-                    <th className="text-center p-4 font-medium text-muted-foreground">
-                      건강상태
-                    </th>
-                    <th className="text-center p-4 font-medium text-muted-foreground">
-                      미션달성
                     </th>
                     <th className="text-center p-4 font-medium text-muted-foreground">
                       최근활동
@@ -237,19 +283,6 @@ export default function CoachDashboard() {
                             )}
                           </div>
                         </div>
-                      </td>
-                      <td className="p-4 text-center">
-                        <span
-                          className={cn(
-                            "px-3 py-1 rounded-full text-sm font-medium",
-                            getStatusColor(user.healthStatus)
-                          )}
-                        >
-                          {getStatusText(user.healthStatus)}
-                        </span>
-                      </td>
-                      <td className="p-4 text-center">
-                        <span className="font-medium">{user.missionRate}%</span>
                       </td>
                       <td className="p-4 text-center text-muted-foreground">
                         {user.lastActive}

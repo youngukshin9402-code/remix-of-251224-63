@@ -7,7 +7,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Flame, Droplets, Scale, Dumbbell } from 'lucide-react';
-import { startOfWeek, endOfWeek, subWeeks, format } from 'date-fns';
+import { format } from 'date-fns';
 
 interface UserMetrics {
   avgCalories: number;
@@ -21,19 +21,19 @@ interface WeeklyMetricsCardProps {
   nickname: string;
 }
 
-// 지난주 일요일~토요일 계산
-function getLastWeekRange() {
+// D-7 ~ D-1 기간 계산 (오늘 제외, 지난 7일)
+function getLast7DaysRange() {
   const today = new Date();
-  // 이번주 일요일
-  const thisWeekStart = startOfWeek(today, { weekStartsOn: 0 });
-  // 지난주 일요일
-  const lastWeekStart = subWeeks(thisWeekStart, 1);
-  // 지난주 토요일
-  const lastWeekEnd = endOfWeek(lastWeekStart, { weekStartsOn: 0 });
+  // D-7: 7일 전
+  const startDate = new Date(today);
+  startDate.setDate(today.getDate() - 7);
+  // D-1: 1일 전 (어제)
+  const endDate = new Date(today);
+  endDate.setDate(today.getDate() - 1);
   
   return {
-    start: format(lastWeekStart, 'yyyy-MM-dd'),
-    end: format(lastWeekEnd, 'yyyy-MM-dd'),
+    start: format(startDate, 'yyyy-MM-dd'),
+    end: format(endDate, 'yyyy-MM-dd'),
   };
 }
 
@@ -43,7 +43,7 @@ export function WeeklyMetricsCard({ userId, nickname }: WeeklyMetricsCardProps) 
 
   useEffect(() => {
     const fetchMetrics = async () => {
-      const { start: weekStart, end: weekEnd } = getLastWeekRange();
+      const { start: weekStart, end: weekEnd } = getLast7DaysRange();
 
       try {
         // 1. 식사 기록 - 7일간 평균 칼로리
