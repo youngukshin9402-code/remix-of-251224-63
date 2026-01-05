@@ -127,18 +127,23 @@ export default function Auth() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "kakao",
         options: {
-          redirectTo: `${window.location.origin}${from}`,
+          // 로그인 콜백 처리 가능한 공개 라우트(/auth)로 리다이렉트
+          redirectTo: `${window.location.origin}/auth`,
         },
       });
 
       if (error) {
+        console.error("Kakao OAuth error:", error);
         toast({
           title: "카카오 로그인 실패",
-          description: "다시 시도해주세요.",
+          description: error.message || "다시 시도해주세요.",
           variant: "destructive",
         });
       }
-    } catch {
+      // OAuth 성공 시 카카오 로그인 페이지로 리다이렉트됨
+      // 인증 완료 후 /auth로 돌아오면 onAuthStateChange에서 처리
+    } catch (err) {
+      console.error("Kakao login error:", err);
       toast({
         title: "오류 발생",
         description: "다시 시도해주세요.",
